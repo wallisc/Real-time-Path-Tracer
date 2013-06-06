@@ -1,0 +1,5 @@
+Optimized the sphere intersections
+Add a Interceptable for bounding boxes
+Combing isComment and isUV into a single method
+Test block sizes with different thread amounts
+Handle transforms with triangles

@@ -6,7 +6,7 @@ import sys, re
 
 DEFAULT_CAMERA = """
 camera {
-    location <1, 6, 12>
+    location <0, 0, 1>
     up <0, 1, 0>
     right <1.33, 0, 0>
     look_at <0, 0, 0>
@@ -14,19 +14,19 @@ camera {
 """
 
 DEFAULT_LIGHTS = """
-light_source { <30, 10, 30> color rgb <1.0, 1.0, 1.0> }
+light_source { <0, 1.5 , 0> color rgb <1.0, 1.0, 1.0> }
 """
 
 class Material:
    clr = (0.0, 0.0, 0.0)
    alpha = 0.0
    amb = 0.0
-   dif = 0.0
+   dif = 1.0
    spec = 0.0
    rough = 0.0
    refl = 0.0
    refr = 0.0
-   ior = 0.0
+   ior = 1.0
 
 defMat = Material()
 defMat.clr = (.5, .5, .5)
@@ -43,6 +43,7 @@ def addMaterials(fileName, matMap):
    file = open(fileName, 'r')
 
    newMat = re.compile(r"\s*newmtl\s.*")
+   illum = re.compile(r"\s*illum\s.*")
    specCoef = re.compile(r"\s*Ns\s.*")
    alpha = re.compile(r"\s*tr\s.*")
    diffuse = re.compile(r"\s*d\s.*")
@@ -52,33 +53,47 @@ def addMaterials(fileName, matMap):
    line = file.readline()
    while line != '':
       if newMat.match(line):
-         tokens = re.split("\s", line)
+         tokens = re.split("\s+", line)
          matName = tokens[1]
          mat = Material()
          line = file.readline()
          while not newMat.match(line):
             if specCoef.match(line):
-               tokens = re.split("\s", line)
+               tokens = re.split("\s+", line)
                idx = 2 if tokens[0] == "" else 1
                mat.rough = 1.0 / float(tokens[idx]) 
             elif alpha.match(line):
-               tokens = re.split("\s", line)
+               tokens = re.split("\s+", line)
                idx = 2 if tokens[0] == "" else 1
                mat.alpha= float(tokens[idx])
             elif diffuse.match(line):
-               tokens = re.split("\s", line)
+               tokens = re.split("\s+", line)
                idx = 2 if tokens[0] == "" else 1
                mat.dif = float(tokens[idx])
             elif pigment.match(line):
-               tokens = re.split("\s", line)
+               tokens = re.split("\s+", line)
                idx = 2 if tokens[0] == "" else 1
                mat.clr = (float(tokens[idx]), float(tokens[idx + 1]), float(tokens[idx + 2]))
             elif ior.match(line):
-               tokens = re.split("\s", line)
+               tokens = re.split("\s+", line)
                idx = 2 if tokens[0] == "" else 1
                mat.ior = float(tokens[idx])
+            elif illum.match(line):
+               tokens = re.split("\s+", line)
+               idx = 2 if tokens[0] == "" else 1
+               illumNum = int(tokens[idx])
+               if illumNum == 5:
+                  mat.refl = 1.0
+                  mat.dif = 0.0
+               elif illumNum == 6 or illumNum == 7:
+                  mat.refr = 1.0
+                  mat.alpha = 1.0
+                  mat.dif = 0.0
+               
             elif line == '':
                matMap[matName] = mat 
+               #for mat, m in matMap.iteritems():
+               #   print mat + ": " + " color is " + repr(m.clr[0]) + ", " + repr(m.clr[1]) + ", " + repr(m.clr[2]) 
                return
 
             line = file.readline()
@@ -95,7 +110,7 @@ def matToStr(mat):
    str += "   finish { ambient " + repr(mat.amb) + " diffuse " + repr(mat.dif) + " specular " + repr(mat.spec) + " roughness " + repr(mat.rough)   
 
    if mat.refl > 0.0:
-      str += " reflection " + mat.refl
+      str += " reflection " + repr(mat.refl)
 
    if mat.refr > 0.0:
       str += " refraction " + repr(mat.refr) + " ior " + repr(mat.ior)
@@ -132,6 +147,7 @@ def convertToPOV(fileName):
    vertexCheck = re.compile(r"\s*v\s.*")
    textureCheck = re.compile(r"\s*vt\s.*")
    faceCheck = re.compile(r"\s*f\s.*")
+   whiteSpaceCheck = re.compile(r"\s*")
    
    line = file.readline()
 
@@ -172,15 +188,18 @@ def convertToPOV(fileName):
          texList.append((v1, v2))
       
       elif faceCheck.match(line):
-         while line != '' and not normalCheck.match(line) and not vertexCheck.match(line) and not textureCheck.match(line): 
+         objFaces = 0
+         while faceCheck.match(line): 
 
             if faceCheck.match(line):
                faceCount += 1
-               face = re.split("\s", line)
+               face = re.split("\s+", line)
                uvIdxList = []
 
-               # Handling the plane in conference
-               if len(face) == 5:
+               # Handle if there are 4 verticies supplied
+               if (len(face) == 5 and not whiteSpaceCheck.match(face[4])) or (len(face) == 6 and face[5] == ""):
+                  print line
+                  faceCount += 1
                   point1 = re.split("/", face[1])
                   point2 = re.split("/", face[2])
                   point3 = re.split("/", face[3])
@@ -190,6 +209,13 @@ def convertToPOV(fileName):
                   v3idx = int(point3[0]) - 1
                   v4idx = int(point4[0]) - 1
 
+                  # If using relative indicies
+                  if v1idx < 0:
+                     v1idx = len(vertList) + v1idx + 1
+                     v2idx = len(vertList) + v2idx + 1
+                     v3idx = len(vertList) + v3idx + 1
+                     v4idx = len(vertList) + v4idx + 1
+
                   outFile.write("triangle {\n")
                   outFile.write("   " + vecToStr(vertList[v1idx]) + ", ")
                   outFile.write(vecToStr(vertList[v2idx]) + ", ")
@@ -198,8 +224,8 @@ def convertToPOV(fileName):
                   outFile.write("}\n\n")
 
                   outFile.write("triangle {\n")
-                  outFile.write("   " + vecToStr(vertList[v3idx]) + ", ")
-                  outFile.write(vecToStr(vertList[v2idx]) + ", ")
+                  outFile.write("   " + vecToStr(vertList[v1idx]) + ", ")
+                  outFile.write(vecToStr(vertList[v3idx]) + ", ")
                   outFile.write(vecToStr(vertList[v4idx]) + "\n") 
                   outFile.write(matToStr(curMat))
                   outFile.write("}\n\n")
@@ -214,6 +240,13 @@ def convertToPOV(fileName):
                   v1idx = int(point1[0]) - 1
                   v2idx = int(point2[0]) - 1
                   v3idx = int(point3[0]) - 1
+
+                  # If using relative indicies
+                  if v1idx < 0:
+                     v1idx = len(vertList) + v1idx + 1
+                     v2idx = len(vertList) + v2idx + 1
+                     v3idx = len(vertList) + v3idx + 1
+
                   outFile.write("   " + vecToStr(vertList[v1idx]) + ", ")
                   outFile.write(vecToStr(vertList[v2idx]) + ", ")
                   outFile.write(vecToStr(vertList[v3idx]) + "\n") 
@@ -237,12 +270,12 @@ def convertToPOV(fileName):
                      if idx < 3: outFile.write(",\n")
                      else: outFile.write("\n")
 
-               if len(uvIdxList) == 3:
+               #if len(uvIdxList) == 3:
                   #outFile.write("   uv {")
-                  for idx in range(0, 3):
-                     outFile.write(vecToStr(texList[uvIdxList[idx]]))
-                     if idx < 2: outFile.write(", ")
-                     else: outFile.write("}\n")
+                  #for idx in range(0, 3):
+                  #   outFile.write(vecToStr(texList[uvIdxList[idx]]))
+                  #   if idx < 2: outFile.write(", ")
+                  #   else: outFile.write("}\n")
 
 
                outFile.write(matToStr(curMat))

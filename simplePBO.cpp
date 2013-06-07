@@ -105,6 +105,9 @@ void cleanupCuda()
 
 int g_depth;
 int g_pass = 1;
+bool g_doBlur = 0;
+bool g_doMedian = 0;
+bool g_doMotionBlur = 0;
 
 // Run the Cuda part of the computation
 void runCuda()
@@ -117,7 +120,7 @@ void runCuda()
    cudaGLMapBufferObject((void**)&dptr, pbo);
 
    // execute the kernel
-   launch_kernel(image_width, image_height, g_depth, g_pass++, dptr);
+   launch_kernel(image_width, image_height, g_depth, g_pass++, dptr, g_doBlur, g_doMedian);
 
    // unmap buffer object
    cudaGLUnmapBufferObject(pbo);
@@ -167,11 +170,18 @@ void initCuda(string fileName, int depth, ShadingType stype, char *out)
    runCuda();
 }
 
+void setFilter(bool blur, bool median, bool motionBlur) {
+   g_doBlur = blur;
+   g_doMedian = median;
+   g_doMotionBlur = motionBlur;
+}
+
 void modifyCamera(vec3 translate, float rotHoriz, float rotVertical) {
    translateCamera(translate);
    rotateCameraVertically(rotVertical);
    rotateCameraSideways(rotHoriz);
-   g_pass = 1;
+   if (!g_doMotionBlur)
+      g_pass = 1;
 }
 
 void saveImage() {

@@ -11,7 +11,7 @@ public:
       glm::vec3 light(0.0f);
       
       // Ambient lighting
-      light += amb * lightColor;
+      //light += amb * lightColor;
       if (inShadow) return light * matColor;
 
       // Diffuse lighting

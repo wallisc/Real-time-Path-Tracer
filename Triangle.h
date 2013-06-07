@@ -57,7 +57,7 @@ public:
       float t;
 
       if (isFloatZero(numer) || isFloatZero(denom) || 
-            isFloatLessThan(t = numer / denom, 0.0f))
+            !isFloatAboveZero(t = numer / denom))
          return -1.0f;
 
       // intersection point

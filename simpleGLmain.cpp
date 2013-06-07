@@ -13,7 +13,7 @@
 using std::string;
 const int kDefaultImageWidth = 640;
 const int kDefaultImageHeight = 480;
-const int kDefaultDepth = 5;
+const int kDefaultDepth = 4;
 
 // The user must create the following routines:
 // CUDA methods

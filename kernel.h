@@ -18,11 +18,12 @@ const int kNumStreams = 3;
 const int kMaxTextures= 10;
 
 typedef enum {PHONG, COOK_TORRANCE} ShadingType;
-const int kMaxRecurse = 5;
 const float kAirIOR = 1.0f;
 
-const float kMinDepth= .5f;
-const float kRussianRoulette= .5f;
+const int kMedianPixelAmt = 3;
+
+const int kMinDepth= 3;
+const float kRussianRoulette= .3f;
 
 const int kXAxis = 0, kYAxis = 1, kZAxis = 2;
 const int kAxisNum = 3;
@@ -33,7 +34,7 @@ const int kRowsPerKernel = 512;
 const int kColumnsPerKernel = 512;
 
 extern "C" void init_kernel(const TKSceneData &data, ShadingType stype, int width, int height);
-extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uchar4 *output);
+extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uchar4 *output, bool blur, bool median);
 void kernelGetImage(uchar4 *dImage, uchar4 *image, int width, int height);
 void translateCamera(glm::vec3 trans);
 void rotateCameraVertically(float angle);

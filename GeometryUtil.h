@@ -44,7 +44,7 @@ __device__ inline float boxIntersect(const Ray &ray, const glm::vec3 &minP, cons
    // If the ray is in the box
    if (ray.o.x > minP.x && ray.o.x < maxP.x && ray.o.y > minP.y 
        && ray.o.y < maxP.y && ray.o.z > minP.z && ray.o.z < maxP.z) {
-      return tSmallestMax;
+      return EPSILON;
    } else {
       return tBiggestMin < tSmallestMax ? tBiggestMin : -1.0f;
    }

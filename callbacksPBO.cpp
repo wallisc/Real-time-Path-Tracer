@@ -18,13 +18,8 @@ extern GLuint pbo;
 extern GLuint textureID;
 extern unsigned int image_width;
 extern unsigned int image_height;
-extern void moveIn();
-extern void moveOut();
-extern void moveUp();
-extern void moveDown();
-extern void moveLeft();
-extern void moveRight();
 extern void modifyCamera(vec3 trans, float rotHoriz, float rotVert); 
+void setFilter(bool blur, bool median, bool motionBlur);
 
 // The user must create the following routines:
 void runCuda();
@@ -77,40 +72,71 @@ float kRotateSpeed = 3.0f;
 //! Keyboard events handler for GLUT
 void keyboard(unsigned char key, int x, int y)
 {
+   static bool blur = false, median = false, motionBlur = false;
    float tx = 0.0f, ty = 0.0f, tz = 0.0f; 
    float ry = 0.0f;
    float rz = 0.0f;
+   bool cameraChange = false;
+
    switch(key) {
-   case 'q' :
+   case 27:
       saveImage();
       exit(0);
       break;
-   case 'w':
+   case 'q':
+      ty = kCamSpeed;
+      cameraChange = true;
+      break;
+   case 'e':
       ty = -kCamSpeed;
+      cameraChange = true;
       break;
    case 's':
-      ty = kCamSpeed;
+      tz = -kCamSpeed;
+      cameraChange = true;
+      break;
+   case 'w':
+      tz = kCamSpeed;
+      cameraChange = true;
       break;
    case 'a':
-      tx = kCamSpeed;
+      tx = -kCamSpeed;
+      cameraChange = true;
       break;
    case 'd':
-      tx = -kCamSpeed;
+      tx = kCamSpeed;
+      cameraChange = true;
       break;
    case 'i':
       rz = kRotateSpeed;
+      cameraChange = true;
       break;
    case 'k':
       rz = -kRotateSpeed;
+      cameraChange = true;
       break;
    case 'j':
       ry = kRotateSpeed;
+      cameraChange = true;
       break;
    case 'l':
       ry = -kRotateSpeed;
+      cameraChange = true;
+      break;
+   case 'b':
+      blur = !blur;
+      setFilter(blur, median, motionBlur);
+      break;
+   case 'm':
+      median = !median;;
+      setFilter(blur, median, motionBlur);
+      break;
+   case 'v':
+      motionBlur = !motionBlur;;
+      setFilter(blur, median, motionBlur);
       break;
    }
-   modifyCamera(vec3(tx, ty, tz), ry, rz); 
+   if (cameraChange) modifyCamera(glm::vec3(tx, ty, tz), ry, rz);
 
    // indicate the display must be redrawn
    glutPostRedisplay();

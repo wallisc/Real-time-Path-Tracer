@@ -131,14 +131,17 @@ __device__ void getClosestIntersection(const Ray &ray, BVHTree *tree,
          }
       // If not on a leaf and neither branch has been explored
       } else if (!justPoppedStack) { 
-         if (!cursor->right) {
+         float left = cursor->left->bb.getIntersection(ray);
+
+         if (!cursor->right && isFloatAboveZero(left) && left < t) {
             cursor = cursor->left;
             justPoppedStack = false;
             continue;
          }
 
          // Go down the tree with the closest bounding box
-         float right = cursor->right->bb.getIntersection(ray), left = cursor->left->bb.getIntersection(ray);
+         float right = cursor->right->bb.getIntersection(ray);
+
          if (isFloatAboveZero(right) && (right <= left || !isFloatAboveZero(left)) && right < t) {
             if (isFloatAboveZero(left)) stack[stackSize++] = StackEntry(cursor, kLeft);
             cursor = cursor->right;
@@ -199,7 +202,10 @@ __device__ vec3 cosineWeightedSample(vec3 normal, float rand1, float rand2) {
    float phiDeg = phi * 180.0f / M_PI;
    float thetaDeg = theta * 180.0f / M_PI;
 
-   vec3 outV = normal.x < .99f ? glm::cross(normal, vec3(1.0f, 0.0, 0.0)) : vec3(0.0f, 1.0f, 0.0f); 
+   vec3 outV; 
+   if (normal.x > .99f) outV = vec3(0.0f, 1.0f, 0.0f);
+   else if (normal.x < -.99f) outV = vec3(0.0f, -1.0f, 0.0f);
+   else outV = glm::cross(normal, vec3(1.0f, 0.0, 0.0));
    glm::mat4 rot1 = glm::rotate(glm::mat4(1.0f), phiDeg, outV);
    glm::mat4 rot2 = glm::rotate(glm::mat4(1.0f), thetaDeg, normal);
    glm::vec4 norm(normal.x, normal.y, normal.z, 0.0f);
@@ -513,20 +519,90 @@ void allocateGPUScene(const TKSceneData &data, Triangle **dGeomList,
    *retLightCount = g_lightCount;
 }
 
-__global__ void convertToUchar4(int resWidth, int resHeight, vec3 vec3Clrs[], 
-      uchar4 output[], int passes) {
-
+__global__ void averagePasses(int resWidth, int resHeight, vec3 image[], vec3 outImage[], int passes) {
    int x = blockIdx.x * blockDim.x + threadIdx.x; 
-   // Flip the image
    int y = blockIdx.y * blockDim.y + threadIdx.y; 
+   if (x >= resWidth || y >= resHeight) return;
+
+   int idx = y * resWidth + x;
+
+   outImage[idx] = image[idx] * 255.0f / (float)passes;
+}
+
+__device__ float getMedian(vec3 list[], int listSize, int axis) {
+   int pivot;
+   int start = 0;
+   int end = listSize;
+   int topOfBottom;
+   do {
+      pivot = (start + end) / 2;
+      SWAP(list[pivot], list[end - 1]); 
+      topOfBottom = start;
+      for (int i = start; i < end - 1; i++) {
+         if (list[i][axis] < list[pivot][axis]) {
+            SWAP(list[i], list[topOfBottom]);
+            topOfBottom++;
+         }
+      }
+      SWAP(list[end - 1], list[topOfBottom]);
+      if (topOfBottom < listSize / 2) start = topOfBottom + 1;
+      else if (topOfBottom > listSize / 2) end = topOfBottom;
+   } while (topOfBottom != listSize / 2);
+   return list[pivot][axis];
+}
+
+__global__ void medianFilter(int resWidth, int resHeight, vec3 image[]) {
+   int x = blockIdx.x * blockDim.x + threadIdx.x; 
+   int y = blockIdx.y * blockDim.y + threadIdx.y; 
+
+   if (x >= resWidth || y >= resHeight) return;
+   int idx = y * resWidth + x;
+
+   vec3 nearClrs[kMedianPixelAmt * kMedianPixelAmt];
+   for (int i = 0; i < kMedianPixelAmt; i++) {
+      for (int j = 0; j < kMedianPixelAmt; j++) {
+         nearClrs[i * kMedianPixelAmt + j] = image[min(max((y + j - kMedianPixelAmt / 2) * resWidth + x + i - kMedianPixelAmt / 2, 0), resWidth * resHeight - 1)];
+      }
+   }
+   
+   image[idx].x = getMedian(nearClrs, kMedianPixelAmt * kMedianPixelAmt, kXAxis);
+   image[idx].y = getMedian(nearClrs, kMedianPixelAmt * kMedianPixelAmt, kYAxis);
+   image[idx].z = getMedian(nearClrs, kMedianPixelAmt * kMedianPixelAmt, kZAxis);
+}
+
+__global__ void blurFilter(int resWidth, int resHeight, vec3 image[]) {
+   int x = blockIdx.x * blockDim.x + threadIdx.x; 
+   int y = blockIdx.y * blockDim.y + threadIdx.y; 
+
+   if (x >= resWidth || y >= resHeight) return;
+   int idx = y * resWidth + x;
+
+   vec3 nearClrs[kMedianPixelAmt * kMedianPixelAmt];
+   for (int i = 0; i < kMedianPixelAmt; i++) {
+      for (int j = 0; j < kMedianPixelAmt; j++) {
+         nearClrs[i * kMedianPixelAmt + j] = image[min(max((y + j - kMedianPixelAmt / 2) * resWidth + x + i - kMedianPixelAmt / 2, 0), resWidth * resHeight - 1)];
+      }
+   }
+
+   vec3 clr(0.0f);
+   for (int i = 0; i < kMedianPixelAmt * kMedianPixelAmt; i++) {
+      clr += nearClrs[i];
+   }
+   image[idx] = clr / (float)(kMedianPixelAmt * kMedianPixelAmt);
+}
+
+__global__ void convertToUchar4(int resWidth, int resHeight, vec3 vec3Clrs[], uchar4 output[]) {
+   
+   int x = blockIdx.x * blockDim.x + threadIdx.x; 
+   int y = blockIdx.y * blockDim.y + threadIdx.y; 
+   // Flip the image
    int flippedY = resHeight - y - 1; 
+
 
    if (x >= resWidth || y >= resHeight) return;
 
    int idx = y * resWidth + x;
    vec3 clr = vec3Clrs[idx];
-   clr = clr * 255.0f / (float)passes;
-
    uchar4 convClr;
    convClr.x = clamp(clr.x, 0, 255); convClr.y = clamp(clr.y, 0, 255); 
    convClr.z = clamp(clr.z, 0, 255); convClr.w = 255;
@@ -537,6 +613,7 @@ RayCache *g_dRayCache;
 BVHTree *g_dBvhTree;
 curandState *g_dRandStates;
 vec3 *g_dVec3Out;
+vec3 *g_dTempImage;
 Shader **g_dShader;
 PointLight *g_dLightList;
 int g_lightCount;
@@ -557,6 +634,7 @@ extern "C" void init_kernel(const TKSceneData &data, ShadingType stype, int widt
    // Fill the geomList and light list with objects dynamically created on the GPU
    HANDLE_ERROR(cudaMalloc(&g_dShader, sizeof(Shader*)));
    HANDLE_ERROR(cudaMalloc(&g_dVec3Out , sizeof(vec3) * width * height));
+   HANDLE_ERROR(cudaMalloc(&g_dTempImage, sizeof(vec3) * width * height));
    HANDLE_ERROR(cudaMemset(g_dVec3Out, 0, sizeof(vec3) * width * height));
 
    allocateGPUScene(data, &dGeomList, &g_dLightList, &geometryCount, &g_lightCount, g_dShader, stype);
@@ -575,7 +653,7 @@ extern "C" void init_kernel(const TKSceneData &data, ShadingType stype, int widt
 
 }
 
-extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uchar4 *dOutput) {
+extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uchar4 *dOutput, bool blur, bool median) {
 
    dim3 dimBlock = dim3(kBlockWidth, kBlockWidth);
    dim3 camGrid((width - 1) / kBlockWidth + 1, (height - 1) / kBlockWidth + 1);
@@ -599,14 +677,31 @@ extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uch
 
    dimBlock = dim3(kBlockWidth, kBlockWidth);
    dimGrid = dim3((width - 1) / kBlockWidth + 1, (height - 1) / kBlockWidth + 1);
-   convertToUchar4<<<dimGrid, dimBlock>>>(width, height, g_dVec3Out, dOutput, pass); 
+   averagePasses<<<dimGrid, dimBlock>>>(width, height, g_dVec3Out, g_dTempImage, pass); 
+   cudaDeviceSynchronize();
+   checkCUDAError("averagePasses kernel failed");
 
+   if (median) {
+      medianFilter<<<dimGrid, dimBlock>>>(width, height, g_dTempImage); 
+      cudaDeviceSynchronize();
+      checkCUDAError("medianFilter kernel failed");
+   }
+
+   if (blur) {
+      blurFilter<<<dimGrid, dimBlock>>>(width, height, g_dTempImage); 
+      cudaDeviceSynchronize();
+      checkCUDAError("blurFilter kernel failed");
+   }
+
+   convertToUchar4<<<dimGrid, dimBlock>>>(width, height, g_dTempImage, dOutput); 
    cudaDeviceSynchronize();
    checkCUDAError("convertToUchar4 kernel failed");
 }
 
 void translateCamera(glm::vec3 dir) {
-   g_camera.pos += dir;
+   g_camera.pos += dir.x * glm::normalize(g_camera.right);
+   g_camera.pos += dir.z * g_camera.lookAtDir;
+   g_camera.pos += dir.y * g_camera.up;
 }
 
 void rotateCameraSideways(float angle) {

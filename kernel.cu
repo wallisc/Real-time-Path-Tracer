@@ -240,8 +240,7 @@ __device__ vec3 shadeObject(BVHTree *tree,
 
    for(int lightIdx = 0; lightIdx < lightCount; lightIdx++) {
 
-      vec3 lightColor = lights[lightIdx]->mat.clr;
-      //if (threadIdx.x == 0 && blockIdx.x == 0) printf("%f, %f, %f\n", lightColor.x, lightColor.y, lightColor.z);
+      vec3 lightColor = lights[lightIdx]->mat.dif * lights[lightIdx]->mat.clr;
 
       // Randomly sample the area light with a random baryocentric coordinate
       float alpha = curand_uniform(randStates);
@@ -271,12 +270,12 @@ __global__ void initScene(Triangle geomList[], TKTriangle *triangleTks,
    for (int triIdx = idx; triIdx < numTris; triIdx += gridSize) {
       const TKTriangle &t = triangleTks[triIdx];
       if (t.mod.fin.em) {
-         Material m(t.mod.pig.clr);
-         geomList[triIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n, t.n, t.n, m, t.vt1, t.vt2, t.vt3);
+         Material m(t.mod.pig.clr, t.mod.fin.dif);
+         geomList[triIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n, t.n, t.n, m, t.mod.velocity, t.vt1, t.vt2, t.vt3);
       } else {  
          const TKFinish f = t.mod.fin;
          Material m(t.mod.pig.clr, t.mod.pig.f, f.amb, f.dif, f.spec, f.rough, f.refl, f.refr, f.ior, t.mod.pig.texId);
-         geomList[triIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n, t.n, t.n, m, t.vt1, t.vt2, t.vt3);
+         geomList[triIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n, t.n, t.n, m, t.mod.velocity, t.vt1, t.vt2, t.vt3);
       }
 
    }
@@ -285,20 +284,18 @@ __global__ void initScene(Triangle geomList[], TKTriangle *triangleTks,
    for (int smTriIdx = idx; smTriIdx < numSmthTris; smTriIdx += gridSize) {
       const TKSmoothTriangle &t = smthTriTks[smTriIdx];
       if (t.mod.fin.em) {
-         Material m(t.mod.pig.clr);
-         geomList[smTriIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n1, t.n2, t.n3, m, t.vt1, t.vt2, t.vt3);
+         Material m(t.mod.pig.clr, t.mod.fin.dif);
+         geomList[smTriIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n1, t.n2, t.n3, m, t.mod.velocity, t.vt1, t.vt2, t.vt3);
       } else {
          const TKFinish f = t.mod.fin;
          Material m(t.mod.pig.clr, t.mod.pig.f, f.amb, f.dif, f.spec, f.rough, f.refl, f.refr, f.ior, t.mod.pig.texId);
          geomList[smTriIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n1, t.n2, t.n3, 
-               m, t.vt1, t.vt2, t.vt3);
+               m, t.mod.velocity, t.vt1, t.vt2, t.vt3);
       }
-
    }
-
    geomListSize += numSmthTris;
-
 }
+
 __global__ void setupLights(Triangle geomList[], int listSize, Triangle *lights[]) {
    int lightNum = 0;
    for (int i = 0; i < listSize; i++) {
@@ -651,6 +648,7 @@ extern "C" void init_kernel(const TKSceneData &data, ShadingType stype, int widt
 
 extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uchar4 *dOutput, bool blur, bool median) {
 
+   updateBVH(kSecondsPerFrame);
    dim3 dimBlock = dim3(kBlockWidth, kBlockWidth);
    dim3 camGrid((width - 1) / kBlockWidth + 1, (height - 1) / kBlockWidth + 1);
    dim3 dimGrid = dim3((kColumnsPerKernel - 1) / kBlockWidth + 1, (kColumnsPerKernel - 1) / kBlockWidth + 1);

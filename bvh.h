@@ -8,6 +8,7 @@
 
 typedef struct BVHNode {
    BVHNode *left, *right;
+   BVHNode *parent;
    Triangle *geom;
    BoundingBox bb;
 
@@ -22,5 +23,6 @@ typedef struct BVHTree {
 } BVHTree;
 
 void formBVH(Triangle *dGeomList[], int geomCount, BVHTree *dTree);
+void updateBVH(float dt);
 
 #endif //BVH_H

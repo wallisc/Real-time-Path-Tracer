@@ -25,6 +25,8 @@ const int kMedianPixelAmt = 3;
 const int kMinDepth= 3;
 const float kRussianRoulette= .3f;
 
+const float kSecondsPerFrame = .05f;
+
 const int kXAxis = 0, kYAxis = 1, kZAxis = 2;
 const int kAxisNum = 3;
 

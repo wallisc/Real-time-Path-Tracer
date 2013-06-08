@@ -437,12 +437,15 @@ int POVRayParser::parseModifiers(std::ifstream &in, TKModifier *m, TKSceneData *
    in >> nextWord;
    int status;
    glm::mat4 matStack(1.0f);
+   m->velocity = vec3(0.0f);
     
       while (nextWord.compare("}")) {
          if (!nextWord.compare("scale")) {
             status = parseScale(in, &matStack);
          } else if (!nextWord.compare("rotate")) {
             status = parseRotate(in, &matStack);
+         } else if (!nextWord.compare("velocity")) {
+            status = parseVector(in, &m->velocity);
          } else if (!nextWord.compare("translate")) {
             status = parseTranslate(in, &matStack);
          } else if (!nextWord.compare("finish")) {

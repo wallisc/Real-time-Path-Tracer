@@ -7,6 +7,11 @@ using std::pair;
 
 typedef pair<int, int> SortRange;
 
+BVHNode **g_dBVHLeaves;
+BVHNode **g_dBVHbuffer1;
+BVHNode **g_dBVHbuffer2;
+int g_numLeaves;
+
 void multiKernelSort(Triangle buffer1[], Triangle buffer2[], 
       const vector<SortRange > &sortIdxs, int axis);
 
@@ -28,6 +33,7 @@ __global__ void convergeBVHNodes(BVHNode *oldBuffer[], BVHNode *newBuffer[],
 
 void formBVH(Triangle dGeomList[], int geomCount, BVHTree *dTree) {
 
+   g_numLeaves = geomCount;
    // Sort all the geometry data in a way that makes creating the BVH tree
    // parallelizable 
    vector<SortRange > *oldQueue = new vector<SortRange >();
@@ -65,34 +71,33 @@ void formBVH(Triangle dGeomList[], int geomCount, BVHTree *dTree) {
    }
 
    // Create the BVH
-   BVHNode **dBuffer1, **dBuffer2;
    int bufferSize = (geomCount - 1) / 2 + 1;
 
-   HANDLE_ERROR(cudaMalloc(&dBuffer1, sizeof(BVHNode *) * bufferSize));
-   HANDLE_ERROR(cudaMalloc(&dBuffer2, sizeof(BVHNode *) * bufferSize));
+   HANDLE_ERROR(cudaMalloc(&g_dBVHLeaves, sizeof(BVHNode *) * bufferSize));
+   HANDLE_ERROR(cudaMalloc(&g_dBVHbuffer1, sizeof(BVHNode *) * bufferSize));
+   HANDLE_ERROR(cudaMalloc(&g_dBVHbuffer2, sizeof(BVHNode *) * bufferSize));
 
    int blockSize = kBlockWidth * kBlockWidth;
    int gridSize = (bufferSize - 1) / blockSize + 1;
-   setupBVHNodes<<<gridSize, blockSize>>>(dGeomList, geomCount, dBuffer1);
+   setupBVHNodes<<<gridSize, blockSize>>>(dGeomList, geomCount, g_dBVHLeaves);
    cudaDeviceSynchronize();
    checkCUDAError("setupBVHNodes failed");
+   HANDLE_ERROR(cudaMemcpy(g_dBVHbuffer1, g_dBVHLeaves, sizeof(BVHNode *) * bufferSize, cudaMemcpyDeviceToDevice));
 
    // For every level of the BVH tree (from the bottom up)
    for(int nodesLeft = bufferSize; nodesLeft > 1; nodesLeft = (nodesLeft - 1) / 2 + 1) {
       gridSize = (nodesLeft - 1) / blockSize + 1;
-      convergeBVHNodes<<<gridSize, blockSize>>>(dBuffer1, dBuffer2, bufferSize, nodesLeft);
+      convergeBVHNodes<<<gridSize, blockSize>>>(g_dBVHbuffer1, g_dBVHbuffer2, bufferSize, nodesLeft);
       cudaDeviceSynchronize();
       checkCUDAError("convergeBVHNodes failed");
-      SWAP(dBuffer1, dBuffer2);
+      SWAP(g_dBVHbuffer1, g_dBVHbuffer2);
    }
 
-   createBVHTree<<<1, 1>>>(dTree, dBuffer1);
+   createBVHTree<<<1, 1>>>(dTree, g_dBVHbuffer1);
    cudaDeviceSynchronize();
    checkCUDAError("createBVHTree failed");
    
    HANDLE_ERROR(cudaFree(dMergeSortBuffer));
-   HANDLE_ERROR(cudaFree(dBuffer1));
-   HANDLE_ERROR(cudaFree(dBuffer2));
 }
 
 // Given a batch of 'ranges' to sort, runs multiple mergesorts concurrently
@@ -177,11 +182,61 @@ __global__ void setupBVHNodes(Triangle geomList[], int geomCount, BVHNode *nodeB
       
       nodeBuffer[idx]->left = new BVHNode(&geomList[idx * 2]);
       nodeBuffer[idx]->right = new BVHNode(&geomList[idx * 2 + 1]);
+      nodeBuffer[idx]->right->parent = nodeBuffer[idx];
+      nodeBuffer[idx]->left->parent = nodeBuffer[idx];
       nodeBuffer[idx]->bb = combineBoundingBox(nodeBuffer[idx]->left->bb, 
                                                nodeBuffer[idx]->right->bb);
    } else {
       nodeBuffer[idx] = new BVHNode(&geomList[idx * 2]);       
    } 
+}
+
+__global__ void updateLeaves(BVHNode *leaves[], float dt, int numLeaves) {
+   int uid = blockIdx.x * blockDim.x + threadIdx.x;
+   BVHNode *leaf;
+   int leafIdx = uid / 2;
+
+   if (uid >= numLeaves) return;
+
+   if (leaves[leafIdx]->geom) leaf = leaves[leafIdx];
+   else if (uid % 2 == 0) leaf = leaves[leafIdx]->left;
+   else leaf = leaves[leafIdx]->right;
+   leaf->geom->update(dt); 
+   leaf->bb = leaf->geom->getBoundingBox();
+}
+
+__global__ void updateBVHNodes(BVHNode *oldBuffer[], BVHNode *newBuffer[], int nodesLeft) {
+   int idx = blockIdx.x * blockDim.x + threadIdx.x;
+   
+   if (idx >= nodesLeft) return;
+
+   if (idx == nodesLeft - 1 && nodesLeft % 2 == 1) {
+      newBuffer[idx / 2] = oldBuffer[idx];
+   } else {
+      oldBuffer[idx]->bb = combineBoundingBox(oldBuffer[idx]->left->bb, 
+                                              oldBuffer[idx]->right->bb);
+      newBuffer[idx / 2] = oldBuffer[idx]->parent;
+   }
+
+}
+void updateBVH(float dt) {
+   int blockSize = kBlockWidth * kBlockWidth;
+   int gridSize = (g_numLeaves - 1) / blockSize + 1;
+
+   updateLeaves<<<gridSize, blockSize>>>(g_dBVHLeaves, dt, g_numLeaves);
+   cudaDeviceSynchronize();
+   checkCUDAError("updateLeaves kernel failed");
+  
+   int bufferSize = (g_numLeaves - 1) / 2 + 1;
+   HANDLE_ERROR(cudaMemcpy(g_dBVHbuffer1, g_dBVHLeaves, sizeof(BVHNode *) * bufferSize, cudaMemcpyDeviceToDevice));
+   for(int nodesLeft = bufferSize; ; nodesLeft = (nodesLeft - 1) / 2 + 1) {
+      gridSize = (nodesLeft - 1) / blockSize + 1;
+      updateBVHNodes<<<gridSize, blockSize>>>(g_dBVHbuffer1, g_dBVHbuffer2, nodesLeft);
+      cudaDeviceSynchronize();
+      checkCUDAError("updateBVHNodes failed");
+      SWAP(g_dBVHbuffer1, g_dBVHbuffer2);
+      if (nodesLeft == 1) break;
+   }
 }
 
 __global__ void convergeBVHNodes(BVHNode *oldBuffer[], BVHNode *newBuffer[], 
@@ -196,6 +251,8 @@ __global__ void convergeBVHNodes(BVHNode *oldBuffer[], BVHNode *newBuffer[],
 
    if (idx * 2 + 1 < nodesLeft) {
       newBuffer[idx] = new BVHNode();
+      oldBuffer[idx * 2]->parent = newBuffer[idx];
+      oldBuffer[idx * 2 + 1]->parent = newBuffer[idx];
       newBuffer[idx]->left = oldBuffer[idx * 2];
       newBuffer[idx]->right = oldBuffer[idx * 2 + 1];
       newBuffer[idx]->bb = combineBoundingBox(newBuffer[idx]->left->bb, 

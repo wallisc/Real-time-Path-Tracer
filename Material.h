@@ -11,7 +11,7 @@ typedef struct Material {
    bool emissive;
    int texId;
 
-   __device__ Material(const glm::vec3 &lightColor) : clr(lightColor), emissive(true) {}
+   __device__ Material(const glm::vec3 &lightColor, float diffuse) : clr(lightColor), emissive(true), dif(diffuse) {}
    __device__ Material(const glm::vec3 &color, float alphaVal, float ambiant, 
         float diffuse, float specular, float roughness, float reflection, 
         float refraction, float indexOfRefraction, int textureId = NO_TEXTURE) :

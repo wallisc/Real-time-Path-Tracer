@@ -47,6 +47,7 @@ typedef struct TKFinish {
 typedef struct TKModifier {
    TKPigment pig;
    TKFinish fin;
+   glm::vec3 velocity;
    glm::mat4 invTrans;
    glm::mat4 trans;
 } TKModifier;

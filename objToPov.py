@@ -6,10 +6,10 @@ import sys, re
 
 DEFAULT_CAMERA = """
 camera {
-    location <0, 0, 1>
+    location <0, 1, 0>
     up <0, 1, 0>
     right <1.33, 0, 0>
-    look_at <0, 0, 0>
+    look_at <0, 1, 0>
 }
 """
 
@@ -27,17 +27,14 @@ class Material:
    refr = 0.0
    ior = 1.0
    em = (0.0, 0.0, 0.0) 
+   vel = (0.0, 0.0, 0.0) 
 
 defMat = Material()
 defMat.clr = (.5, .5, .5)
-defMat.alpha = 0.0
 defMat.amb = 0.2
 defMat.dif = 0.8
 defMat.spec = 0.3
 defMat.rough = 0.1
-defMat.refl = 0.0
-defMat.refr = 0.0
-defMat.em = (0.0, 0.0, 0.0)
 
 def addMaterials(fileName, matMap):
    file = open(fileName, 'r')
@@ -50,6 +47,7 @@ def addMaterials(fileName, matMap):
    pigment = re.compile(r"\s*Kd\s.*")
    ior = re.compile(r"\s*Ni\s.*")
    emiss = re.compile(r"\s*Ke\s.*")
+   velocity = re.compile(r"\s*v\s.*")
 
    line = file.readline()
    while line != '':
@@ -94,6 +92,10 @@ def addMaterials(fileName, matMap):
                tokens = re.split("\s+", line)
                idx = 2 if tokens[0] == "" else 1
                mat.em = (float(tokens[idx]), float(tokens[idx + 1]), float(tokens[idx + 2]))
+            elif velocity.match(line):
+               tokens = re.split("\s+", line)
+               idx = 2 if tokens[0] == "" else 1
+               mat.vel = (float(tokens[idx]), float(tokens[idx + 1]), float(tokens[idx + 2]))
             elif line == '':
                matMap[matName] = mat 
                #for mat, m in matMap.iteritems():
@@ -107,14 +109,18 @@ def addMaterials(fileName, matMap):
          line = file.readline()
 
 def matToStr(mat):
+   str = ""
+   if mat.vel[0] > 0.0 or mat.vel[1] > 0.0 or mat.vel[2] > 0.0:
+      str += "   velocity " + vecToStr(mat.vel) + "\n"
+
    if mat.em[0] > 0.0 or mat.em[1] > 0.0 or mat.em[2] > 0.0:
-      str = "   pigment { color rgb < " + repr(mat.em[0]) + " , " + repr(mat.em[1]) + " , " + repr(mat.em[2]) + " > }\n"
+      str += "   pigment { color rgb < " + repr(mat.em[0]) + " , " + repr(mat.em[1]) + " , " + repr(mat.em[2]) + " > }\n"
       str += "   finish { emissive 1"
    else:
       if mat.alpha > 0.0:
-         str = "   pigment { color rgbf < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " , " + repr(mat.alpha) + " }\n"
+         str += "   pigment { color rgbf < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " , " + repr(mat.alpha) + " }\n"
       else:
-         str = "   pigment { color rgb < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " }\n"
+         str += "   pigment { color rgb < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " }\n"
       str += "   finish { ambient " + repr(mat.amb) + " diffuse " + repr(mat.dif) + " specular " + repr(mat.spec) + " roughness " + repr(mat.rough)   
 
       if mat.refl > 0.0:

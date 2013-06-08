@@ -9,10 +9,10 @@ class Triangle {
 public:
    __device__ Triangle(const glm::vec3 &point1, const glm::vec3 &point2, 
          const glm::vec3 &point3, const glm::vec3 &norm1, 
-         const glm::vec3 &norm2, const glm::vec3 &norm3, const Material &nMat,
-         glm::vec2 nVt1 = glm::vec2(0.0f), glm::vec2 nVt2 = glm::vec2(0.0f), 
+         const glm::vec3 &norm2, const glm::vec3 &norm3, const Material &nMat, 
+         const glm::vec3 velocity, glm::vec2 nVt1 = glm::vec2(0.0f), glm::vec2 nVt2 = glm::vec2(0.0f), 
          glm::vec2 nVt3 = glm::vec2(0.0f)) : p1(point1), p2(point2), p3(point3), 
-                                             n1(norm1), n2(norm2), n3(norm3), 
+                                             n1(norm1), n2(norm2), n3(norm3), vel(velocity),
                                              vt1(nVt1), vt2(nVt2), vt3(nVt3), mat(nMat) {
       n = glm::normalize(glm::cross(point2 - point1, point3 - point1));
       c = point1;
@@ -98,9 +98,18 @@ public:
       return t;
    }
 
+   __device__ void update(float dt) {
+      glm::vec3 dX = dt * vel; // Change in position
+      c += dX;
+      p1 += dX;
+      p2 += dX;
+      p3 += dX;
+   }
+
    Material mat;
    // Normal and center of the plane the triangle is sitting on
    // TODO c is just p1, kept for syntax readability
+   glm::vec3 vel;
    glm::vec3 n, c;
    glm::vec3 p1, p2, p3;
    glm::vec3 n1, n2, n3;

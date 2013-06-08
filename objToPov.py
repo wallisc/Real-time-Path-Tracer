@@ -14,7 +14,6 @@ camera {
 """
 
 DEFAULT_LIGHTS = """
-light_source { <0, 1.5 , 0> color rgb <1.0, 1.0, 1.0> }
 """
 
 class Material:
@@ -27,6 +26,7 @@ class Material:
    refl = 0.0
    refr = 0.0
    ior = 1.0
+   em = (0.0, 0.0, 0.0) 
 
 defMat = Material()
 defMat.clr = (.5, .5, .5)
@@ -37,7 +37,7 @@ defMat.spec = 0.3
 defMat.rough = 0.1
 defMat.refl = 0.0
 defMat.refr = 0.0
-defMat.ior = 1.0
+defMat.em = (0.0, 0.0, 0.0)
 
 def addMaterials(fileName, matMap):
    file = open(fileName, 'r')
@@ -49,6 +49,7 @@ def addMaterials(fileName, matMap):
    diffuse = re.compile(r"\s*d\s.*")
    pigment = re.compile(r"\s*Kd\s.*")
    ior = re.compile(r"\s*Ni\s.*")
+   emiss = re.compile(r"\s*Ke\s.*")
 
    line = file.readline()
    while line != '':
@@ -89,7 +90,10 @@ def addMaterials(fileName, matMap):
                   mat.refr = 1.0
                   mat.alpha = 1.0
                   mat.dif = 0.0
-               
+            elif emiss.match(line):
+               tokens = re.split("\s+", line)
+               idx = 2 if tokens[0] == "" else 1
+               mat.em = (float(tokens[idx]), float(tokens[idx + 1]), float(tokens[idx + 2]))
             elif line == '':
                matMap[matName] = mat 
                #for mat, m in matMap.iteritems():
@@ -103,17 +107,21 @@ def addMaterials(fileName, matMap):
          line = file.readline()
 
 def matToStr(mat):
-   if mat.alpha > 0.0:
-      str = "   pigment { color rgbf < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " , " + repr(mat.alpha) + " }\n"
+   if mat.em[0] > 0.0 or mat.em[1] > 0.0 or mat.em[2] > 0.0:
+      str = "   pigment { color rgb < " + repr(mat.em[0]) + " , " + repr(mat.em[1]) + " , " + repr(mat.em[2]) + " > }\n"
+      str += "   finish { emissive 1"
    else:
-      str = "   pigment { color rgb < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " }\n"
-   str += "   finish { ambient " + repr(mat.amb) + " diffuse " + repr(mat.dif) + " specular " + repr(mat.spec) + " roughness " + repr(mat.rough)   
+      if mat.alpha > 0.0:
+         str = "   pigment { color rgbf < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " , " + repr(mat.alpha) + " }\n"
+      else:
+         str = "   pigment { color rgb < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " }\n"
+      str += "   finish { ambient " + repr(mat.amb) + " diffuse " + repr(mat.dif) + " specular " + repr(mat.spec) + " roughness " + repr(mat.rough)   
 
-   if mat.refl > 0.0:
-      str += " reflection " + repr(mat.refl)
+      if mat.refl > 0.0:
+         str += " reflection " + repr(mat.refl)
 
-   if mat.refr > 0.0:
-      str += " refraction " + repr(mat.refr) + " ior " + repr(mat.ior)
+      if mat.refr > 0.0:
+         str += " refraction " + repr(mat.refr) + " ior " + repr(mat.ior)
 
    str += " }\n"
    return str
@@ -198,7 +206,6 @@ def convertToPOV(fileName):
 
                # Handle if there are 4 verticies supplied
                if (len(face) == 5 and not whiteSpaceCheck.match(face[4])) or (len(face) == 6 and face[5] == ""):
-                  print line
                   faceCount += 1
                   point1 = re.split("/", face[1])
                   point2 = re.split("/", face[2])
@@ -227,12 +234,10 @@ def convertToPOV(fileName):
                   outFile.write("   " + vecToStr(vertList[v1idx]) + ", ")
                   outFile.write(vecToStr(vertList[v3idx]) + ", ")
                   outFile.write(vecToStr(vertList[v4idx]) + "\n") 
-                  outFile.write(matToStr(curMat))
-                  outFile.write("}\n\n")
 
 
                #if no normals were specified
-               if len(re.split("/", face[1])) <= 2:
+               elif len(re.split("/", face[1])) <= 2:
                   outFile.write("triangle {\n")
                   point1 = re.split("/", face[1])
                   point2 = re.split("/", face[2])

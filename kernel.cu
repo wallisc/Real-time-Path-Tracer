@@ -6,14 +6,11 @@
 
 #include "glm/gtc/matrix_transform.hpp"
 
-#include "Light.h"
 #include "Camera.h"
-#include "PointLight.h"
 #include "Sphere.h"
 #include "Triangle.h"
 #include "glm/glm.hpp"
 #include "PhongShader.h"
-#include "CookTorranceShader.h"
 #include "cudaError.h"
 #include "kernel.h"
 
@@ -195,7 +192,7 @@ __device__ bool isInShadow(const Ray &shadow, BVHTree *tree, float intersectPara
 }
 
 __device__ vec3 cosineWeightedSample(vec3 normal, float rand1, float rand2) {
-   float distFromCenter = 1.0f - sqrt(rand1);
+   float distFromCenter = rand1;
    float theta = 2.0f * M_PI * rand2;
    float phi = M_PI / 2.0f - acos(distFromCenter);
 
@@ -227,11 +224,13 @@ __device__ glm::vec3 getColor(Triangle *geom, Ray ray, float param) {
 
 //Note: The ray parameter must stay as a copy (not a reference) 
 __device__ vec3 shadeObject(BVHTree *tree, 
-      PointLight lights[], int g_lightCount, Triangle* geom, 
-      float intParam, Ray ray, Shader **shader, curandState *randStates) {
+      Triangle *lights[], int lightCount, Triangle* geom, 
+      float intParam, Ray ray, curandState *randStates) {
 
    Material m = geom->getMaterial();
+   if (m.emissive) { return m.clr;}
    if (isFloatZero(1.0f - m.refl - m.alpha)) return glm::vec3(0.0f); 
+
 
    glm::vec3 intersectPoint = ray.getPoint(intParam);
    vec3 normal = geom->getNormalAt(ray, intParam);
@@ -239,71 +238,74 @@ __device__ vec3 shadeObject(BVHTree *tree,
    vec3 eyeVec = glm::normalize(-ray.d);
    vec3 totalLight(0.0f);
 
-   for(int lightIdx = 0; lightIdx < g_lightCount; lightIdx++) {
-      vec3 light = lights[lightIdx].getLightAtPoint(intersectPoint);
-      vec3 lightDir = lights[lightIdx].getLightDir(intersectPoint);
-      Ray shadow = lights[lightIdx].getShadowFeeler(intersectPoint);
+   for(int lightIdx = 0; lightIdx < lightCount; lightIdx++) {
+
+      vec3 lightColor = lights[lightIdx]->mat.clr;
+      //if (threadIdx.x == 0 && blockIdx.x == 0) printf("%f, %f, %f\n", lightColor.x, lightColor.y, lightColor.z);
+
+      // Randomly sample the area light with a random baryocentric coordinate
+      float alpha = curand_uniform(randStates);
+      float beta = curand_uniform(randStates) * (1.0f - alpha);
+      vec3 lightPos = lights[lightIdx]->getPointFromBary(alpha, beta);
+
+      vec3 lightDir = glm::normalize(lightPos - intersectPoint);
+      Ray shadow(lightPos, -lightDir);
+      shadow.o += shadow.d * BIG_EPSILON;
       float intersectParam = geom->getIntersection(shadow);
       bool inShadow = isInShadow(shadow, tree, intersectParam); 
 
-      totalLight += (*shader)->shade(matClr, m.amb, m.dif, m.spec, m.rough, 
-            eyeVec, lightDir, light, normal, 
-            inShadow);
+      totalLight += PhongShader::shade(matClr, m.amb, m.dif, m.spec, m.rough, 
+            eyeVec, lightDir, lightColor, normal, inShadow);
    }
 
    return totalLight * (1.0f - m.refl - m.alpha);
 }
 
-__global__ void initScene(Triangle geomList[], PointLight lights[],  TKTriangle *triangleTks, 
-      int numTris, TKSmoothTriangle *smthTriTks, int numSmthTris, 
-      TKPointLight *pLightTks, int numPointLights, Shader **shader, 
-      ShadingType stype) {
+__global__ void initScene(Triangle geomList[], TKTriangle *triangleTks, 
+      int numTris, TKSmoothTriangle *smthTriTks, int numSmthTris, ShadingType stype) {
 
    int idx = blockIdx.x * blockDim.x + threadIdx.x;
    int gridSize = gridDim.x * blockDim.x;
    int geomListSize = 0;
-   int lightListSize = 0;
-
-   if (blockIdx.x == 0 && blockIdx.y == 0 && threadIdx.x == 0 && threadIdx.y == 0) {
-      // Setup the shader
-      switch(stype) {
-      case PHONG:
-         *shader = new PhongShader(); 
-         break;
-      case COOK_TORRANCE:
-         *shader = new CookTorranceShader();
-         break;
-      default:
-         printf("Improper shading type specified\n");
-         break;
-      }
-   }
 
    for (int triIdx = idx; triIdx < numTris; triIdx += gridSize) {
       const TKTriangle &t = triangleTks[triIdx];
-      const TKFinish f = t.mod.fin;
-      Material m(t.mod.pig.clr, t.mod.pig.f, f.amb, f.dif, f.spec, f.rough, f.refl, f.refr, f.ior, t.mod.pig.texId);
-      geomList[triIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n, t.n, t.n, m, t.vt1, t.vt2, t.vt3);
+      if (t.mod.fin.em) {
+         Material m(t.mod.pig.clr);
+         geomList[triIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n, t.n, t.n, m, t.vt1, t.vt2, t.vt3);
+      } else {  
+         const TKFinish f = t.mod.fin;
+         Material m(t.mod.pig.clr, t.mod.pig.f, f.amb, f.dif, f.spec, f.rough, f.refl, f.refr, f.ior, t.mod.pig.texId);
+         geomList[triIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n, t.n, t.n, m, t.vt1, t.vt2, t.vt3);
+      }
+
    }
    geomListSize += numTris;
 
    for (int smTriIdx = idx; smTriIdx < numSmthTris; smTriIdx += gridSize) {
       const TKSmoothTriangle &t = smthTriTks[smTriIdx];
-      const TKFinish f = t.mod.fin;
-      Material m(t.mod.pig.clr, t.mod.pig.f, f.amb, f.dif, f.spec, f.rough, f.refl, f.refr, f.ior, t.mod.pig.texId);
-      geomList[smTriIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n1, t.n2, t.n3, 
-            m, t.vt1, t.vt2, t.vt3);
+      if (t.mod.fin.em) {
+         Material m(t.mod.pig.clr);
+         geomList[smTriIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n1, t.n2, t.n3, m, t.vt1, t.vt2, t.vt3);
+      } else {
+         const TKFinish f = t.mod.fin;
+         Material m(t.mod.pig.clr, t.mod.pig.f, f.amb, f.dif, f.spec, f.rough, f.refl, f.refr, f.ior, t.mod.pig.texId);
+         geomList[smTriIdx + geomListSize] = Triangle(t.p1, t.p2, t.p3, t.n1, t.n2, t.n3, 
+               m, t.vt1, t.vt2, t.vt3);
+      }
 
    }
+
    geomListSize += numSmthTris;
 
-   for (int pointLightIdx = idx; pointLightIdx < numPointLights; pointLightIdx += gridSize) {
-      TKPointLight &p = pLightTks[pointLightIdx];
-      lights[pointLightIdx + lightListSize].p = p.pos; 
-      lights[pointLightIdx + lightListSize].c = p.clr;
+}
+__global__ void setupLights(Triangle geomList[], int listSize, Triangle *lights[]) {
+   int lightNum = 0;
+   for (int i = 0; i < listSize; i++) {
+      if (geomList[i].getMaterial().emissive) {
+         lights[lightNum++] = geomList + i;
+      }
    }
-   lightListSize += numPointLights;
-
 }
 
 __global__ void initCurand(curandState randStates[], int numRandStates) {
@@ -338,17 +340,10 @@ __global__ void generateCameraRays(int resWidth, int resHeight, Camera cam, RayC
 }
 
 __global__ void rayTrace(int column, int row, int resWidth, int resHeight,
-      BVHTree *tree, PointLight lights[], int g_lightCount,  
-      vec3 output[], Shader **shader, curandState randStates[], RayCache cache[], int depth) {
+      BVHTree *tree, Triangle *lights[], int lightCount,  
+      vec3 output[], curandState randStates[], RayCache cache[], int depth) {
 
-   __shared__ PointLight sLights[kMaxLights];
    int tid = threadIdx.y * blockDim.x + threadIdx.x; 
-   int lightIdx = tid;
-   while (lightIdx < g_lightCount) {
-      sLights[lightIdx] = lights[lightIdx];
-      lightIdx += blockDim.x * blockDim.y; 
-   }
-   __syncthreads();
 
    int x = blockIdx.x * blockDim.x + threadIdx.x + column;
    int y = blockIdx.y * blockDim.y + threadIdx.y + row;
@@ -366,10 +361,10 @@ __global__ void rayTrace(int column, int row, int resWidth, int resHeight,
    if (scale.x >= EPSILON || scale.y >= EPSILON || scale.z >= EPSILON) {
       getClosestIntersection(ray, tree, &closestGeom, &t);
       if (closestGeom != kNoShapeFound) {
-         totalColor += scale * shadeObject(tree, sLights, g_lightCount, 
-               closestGeom, t, ray, shader, &randStates[tid]);
+         totalColor += scale * shadeObject(tree, lights, lightCount, 
+               closestGeom, t, ray, &randStates[tid]);
 
-         if (depth >= kMinDepth) {
+         if (!closestGeom->getMaterial().emissive && depth >= kMinDepth) {
             if (curand_uniform(&randStates[tid]) < kRussianRoulette) {
             } else {
                scale *= 1.0f / kRussianRoulette;
@@ -439,11 +434,11 @@ __global__ void rayTrace(int column, int row, int resWidth, int resHeight,
 }
 
 void allocateGPUScene(const TKSceneData &data, Triangle **dGeomList,
-      PointLight **g_dLightList, int *retGeometryCount, 
+      Triangle ***g_dLightList, int *retGeometryCount, 
       int *retLightCount, Shader **g_dShader, ShadingType stype) {
    int geometryCount = 0;
-   int g_lightCount = 0;
    int biggestListSize = 0;
+   int lightCount = 0;
 
    int imgWidth, imgHeight;
    unsigned char *texData = readBMP("blitz.bmp", &imgWidth, &imgHeight);
@@ -466,9 +461,16 @@ void allocateGPUScene(const TKSceneData &data, Triangle **dGeomList,
    // Bind the array to the texture
    HANDLE_ERROR(cudaBindTextureToArray(mytex, cu_array, channelDesc));
 
-   TKPointLight *dPointLightTokens = NULL;
    TKTriangle *dTriangleTokens = NULL;
    TKSmoothTriangle *dSmthTriTokens = NULL;
+
+   // Count all the triangles that are also lights
+   for (int i = 0; i < data.triangles.size(); i++) { 
+      if (data.triangles[i].mod.fin.em) lightCount++;
+   }
+   for (int i = 0; i < data.smoothTriangles.size(); i++) { 
+      if (data.smoothTriangles[i].mod.fin.em) lightCount++;
+   }
 
    int triangleCount = data.triangles.size();
    if (triangleCount > 0) {
@@ -489,25 +491,16 @@ void allocateGPUScene(const TKSceneData &data, Triangle **dGeomList,
       if (smoothTriangleCount > biggestListSize) biggestListSize = smoothTriangleCount;
    }
 
-   int pointLightCount = data.pointLights.size();
-   if (pointLightCount > 0) {
-      HANDLE_ERROR(cudaMalloc(&dPointLightTokens, 
-               sizeof(TKPointLight) * pointLightCount));
-      HANDLE_ERROR(cudaMemcpy(dPointLightTokens, &data.pointLights[0],
-               sizeof(TKPointLight) * pointLightCount, cudaMemcpyHostToDevice));
-      g_lightCount += pointLightCount;
-      if (pointLightCount > biggestListSize) biggestListSize = pointLightCount;
-   }
+   
 
    HANDLE_ERROR(cudaMalloc(dGeomList, sizeof(Triangle) * geometryCount));
-   HANDLE_ERROR(cudaMalloc(g_dLightList, sizeof(PointLight) * g_lightCount));
+   HANDLE_ERROR(cudaMalloc(g_dLightList, sizeof(Triangle *) * lightCount));
 
    int blockSize = kBlockWidth * kBlockWidth;
    int gridSize = (biggestListSize - 1) / blockSize + 1;
    // Fill up GeomList and LightList with actual objects on the GPU
-   initScene<<<gridSize, blockSize>>>(*dGeomList, *g_dLightList, 
-         dTriangleTokens, triangleCount, dSmthTriTokens, smoothTriangleCount, 
-         dPointLightTokens, pointLightCount, g_dShader, stype);
+   initScene<<<gridSize, blockSize>>>(*dGeomList, dTriangleTokens, triangleCount, dSmthTriTokens, smoothTriangleCount, 
+         stype);
 
    cudaDeviceSynchronize();
    checkCUDAError("initScene failed");
@@ -516,7 +509,7 @@ void allocateGPUScene(const TKSceneData &data, Triangle **dGeomList,
    if (dSmthTriTokens) HANDLE_ERROR(cudaFree(dSmthTriTokens));
 
    *retGeometryCount = geometryCount;
-   *retLightCount = g_lightCount;
+   *retLightCount = lightCount;
 }
 
 __global__ void averagePasses(int resWidth, int resHeight, vec3 image[], vec3 outImage[], int passes) {
@@ -615,7 +608,7 @@ curandState *g_dRandStates;
 vec3 *g_dVec3Out;
 vec3 *g_dTempImage;
 Shader **g_dShader;
-PointLight *g_dLightList;
+Triangle **g_dLightList;
 int g_lightCount;
 Camera g_camera(vec3(0.0f), vec3(0.0f), vec3(0.0f), vec3(0.0f));
 
@@ -645,6 +638,9 @@ extern "C" void init_kernel(const TKSceneData &data, ShadingType stype, int widt
    HANDLE_ERROR(cudaMalloc(&g_dBvhTree, sizeof(BVHTree)));
    formBVH(dGeomList, geometryCount, g_dBvhTree);
 
+   //formBVH modifies the ordering of geometry so the lights must be gathered afterwards
+   setupLights<<<1, 1>>>(dGeomList, geometryCount, g_dLightList);
+
    HANDLE_ERROR(cudaMalloc(&g_dRandStates, sizeof(curandState) * kBlockWidth * kBlockWidth));
 
    dimBlock = dim3(kBlockWidth * kBlockWidth);
@@ -668,7 +664,7 @@ extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uch
          for (int y = 0; y < height; y += kRowsPerKernel) {
             rayTrace<<<dimGrid, dimBlock>>>(x, y, width, height,
                g_dBvhTree, g_dLightList, g_lightCount, g_dVec3Out, 
-               g_dShader, g_dRandStates, g_dRayCache, depth);
+               g_dRandStates, g_dRayCache, depth);
          }
       }
    }

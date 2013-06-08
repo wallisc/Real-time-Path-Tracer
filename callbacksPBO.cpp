@@ -84,19 +84,19 @@ void keyboard(unsigned char key, int x, int y)
       exit(0);
       break;
    case 'q':
-      ty = kCamSpeed;
+      tz = kCamSpeed;
       cameraChange = true;
       break;
    case 'e':
-      ty = -kCamSpeed;
-      cameraChange = true;
-      break;
-   case 's':
       tz = -kCamSpeed;
       cameraChange = true;
       break;
+   case 's':
+      ty = -kCamSpeed;
+      cameraChange = true;
+      break;
    case 'w':
-      tz = kCamSpeed;
+      ty = kCamSpeed;
       cameraChange = true;
       break;
    case 'a':

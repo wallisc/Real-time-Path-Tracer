@@ -371,6 +371,7 @@ int POVRayParser::parseSmoothTriangle(std::ifstream &in, TKSceneData *data) {
    data->smoothTriangles.push_back(t);
    return status;
 }
+
 int POVRayParser::parseTriangle(std::ifstream &in, TKSceneData *data) {
    int status;
    TKTriangle t;
@@ -551,6 +552,11 @@ int POVRayParser::parseFinish(std::ifstream &in, TKFinish *finish) {
          in >> finish->refl;
 #ifdef DEBUG
          printf("refl: %f\n", finish->refl);
+#endif 
+      } else if (!nextWord.compare("emissive")) {
+         in >> finish->em;
+#ifdef DEBUG
+         printf("emissive: %d\n", finish->em);
 #endif 
       } else if (!nextWord.compare("refraction")) {
          in >> finish->refr;

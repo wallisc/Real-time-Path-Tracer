@@ -51,6 +51,11 @@ public:
       return alpha * vt1 + beta * vt2 + gamma * vt3;
    }
 
+   __device__ glm::vec3 getPointFromBary(float alpha, float beta) {
+      float gamma = 1.0f - alpha - beta;
+      return p1 * alpha + p2 * beta + p3 * gamma; 
+   }
+
    __device__ float getIntersection(const Ray &r) const {
       float numer = glm::dot(-n,r.o - c);
       float denom = glm::dot(n, r.d);

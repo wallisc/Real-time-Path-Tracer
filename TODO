@@ -2,4 +2,5 @@ Optimized the sphere intersections
 Add a Interceptable for bounding boxes
 Combing isComment and isUV into a single method
 Test block sizes with different thread amounts
+Do the lights in parallel
 Handle transforms with triangles

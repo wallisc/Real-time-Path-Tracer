@@ -31,16 +31,17 @@ typedef struct TKPigment {
 
 typedef struct TKFinish {
    float amb, dif, spec, rough, refl, refr, ior;
+   bool em;
 
    // Assign default values to each field
    TKFinish() :
      amb(0.1f), dif(0.6f), spec(0.0), rough(0.05f), 
-     refl(0.0f), refr(0.0f), ior(1.0f) {} 
+     refl(0.0f), refr(0.0f), ior(1.0f), em(false) {} 
 
    TKFinish(float ambiant, float diffuse, float specular, float roughness,
-        float reflection, float refraction, float indexOfRefraction) :
+        float reflection, float refraction, float indexOfRefraction, bool emissive) :
      amb(ambiant), dif(diffuse), spec(specular), rough(roughness), 
-     refl(reflection), refr(refraction), ior(indexOfRefraction) {} 
+     refl(reflection), refr(refraction), ior(indexOfRefraction), em(emissive) {} 
 } TKFinish;
 
 typedef struct TKModifier {

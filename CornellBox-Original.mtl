@@ -23,7 +23,7 @@ newmtl rightWall
   Ns 10.0000
   Ni 1.5000
   illum 2
-  Ka 0.14 0.45 0.091 # Green
+  Ka 0.14 0.15 0.091 # Green
   Kd 0.14 0.45 0.091
   Ks 0 0 0
   Ke 0 0 0

@@ -1,8 +1,8 @@
 CC=nvcc
 LD=nvcc
-CFLAGS= -O3 -c -lGL -lglut -DGL_GLEXT_PROTOTYPES -lGLU 
-LDFLAGS= -O3 -lGL -lglut -DGL_GLEXT_PROTOTYPES -lGLU  
-CUDAFLAGS= -O3 -c -arch=sm_21 -Xptxas -dlcm=ca -prec-div=false -prec-sqrt=false -use_fast_math
+CFLAGS= -O3 -c -lGL -lglut -DGL_GLEXT_PROTOTYPES -lGLU
+LDFLAGS= -O3 -lGL -lglut -DGL_GLEXT_PROTOTYPES -lGLU 
+CUDAFLAGS= -O2 -lineinfo -g -c -arch=sm_21 -Xptxas -dlcm=ca -prec-div=false -prec-sqrt=false -use_fast_math
 
 ALL= callbacksPBO.o simpleGLmain.o simplePBO.o kernel.o POVRayParser.o Image.o
 

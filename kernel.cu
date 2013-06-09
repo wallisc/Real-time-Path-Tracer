@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <vector>
+#include <string>
 #include <map>
 #include <stdio.h>
 #include <float.h>
@@ -23,12 +24,44 @@ using glm::vec3;
 using glm::vec4;
 using glm::mat4;
 using std::vector;
+using std::map;
+using std::string;
 using std::pair;
 
-texture<uchar4, 2, cudaReadModeNormalizedFloat> mytex;
+typedef texture<uchar4, 2, cudaReadModeNormalizedFloat> Tex;
+
+Tex tex0;
+Tex tex1;
+Tex tex2;
+Tex tex3;
+Tex tex4;
+
+__device__ Tex getCudaTexture(int i) {
+   switch(i) {
+   case 0: return tex0;
+   case 1: return tex1;
+   case 2: return tex2;
+   case 3: return tex3;
+   case 4: return tex4;
+   }
+   printf("Texture not found, returning the first texture\n");
+   return tex0;
+}
+
+__host__ Tex &getTexture(int i) {
+   switch(i) {
+   case 0: return tex0;
+   case 1: return tex1;
+   case 2: return tex2;
+   case 3: return tex3;
+   case 4: return tex4;
+   }
+   printf("Texture not found, returning the first texture\n");
+   return tex0;
+}
 
 // Only works with 24 bit images that are a power of 2
-unsigned char* readBMP(char* filename, int *retWidth, int *retHeight)
+unsigned char* readBMP(const char* filename, int *retWidth, int *retHeight)
 {
    int i;
    FILE* f = fopen(filename, "rb");
@@ -217,7 +250,7 @@ __device__ glm::vec3 getColor(Triangle *geom, Ray ray, float param) {
       return m.clr;
    } else {
       glm::vec2 uv = geom->UVAt(ray, param);
-      float4 clr = tex2D(mytex, uv.x, uv.y);
+      float4 clr = tex2D(getCudaTexture(m.texId), uv.x, uv.y);
       return vec3(clr.x, clr.y, clr.z);
    }
 }
@@ -261,7 +294,7 @@ __device__ vec3 shadeObject(BVHTree *tree,
 }
 
 __global__ void initScene(Triangle geomList[], TKTriangle *triangleTks, 
-      int numTris, TKSmoothTriangle *smthTriTks, int numSmthTris, ShadingType stype) {
+      int numTris, TKSmoothTriangle *smthTriTks, int numSmthTris) {
 
    int idx = blockIdx.x * blockDim.x + threadIdx.x;
    int gridSize = gridDim.x * blockDim.x;
@@ -432,31 +465,41 @@ __global__ void rayTrace(int column, int row, int resWidth, int resHeight,
 
 void allocateGPUScene(const TKSceneData &data, Triangle **dGeomList,
       Triangle ***g_dLightList, int *retGeometryCount, 
-      int *retLightCount, Shader **g_dShader, ShadingType stype) {
+      int *retLightCount, Shader **g_dShader) {
    int geometryCount = 0;
    int biggestListSize = 0;
    int lightCount = 0;
 
    int imgWidth, imgHeight;
-   unsigned char *texData = readBMP("blitz.bmp", &imgWidth, &imgHeight);
+   if (data.textureMap.size() > kMaxTextures) {
+      printf("Too many textures, max supported is %d\n", kMaxTextures);
+      exit(1);
+   }
 
-   int imgSize = sizeof(uchar4) * imgWidth * imgHeight;
-   cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(8, 8, 8, 8, cudaChannelFormatKindUnsigned);
+   for (map<string, int>::const_iterator itr = data.textureMap.begin(); 
+        itr != data.textureMap.end(); 
+        itr++) {
 
-   cudaArray* cu_array;
-   cudaMallocArray(&cu_array, &channelDesc, imgWidth, imgHeight );
+      Tex &curTex = getTexture(itr->second);
+      unsigned char *texData = readBMP(itr->first.c_str(), &imgWidth, &imgHeight);
 
-   //copy image to device array cu_array – used as texture mytex on device
-   HANDLE_ERROR(cudaMemcpyToArray(cu_array, 0, 0, texData, imgSize, cudaMemcpyHostToDevice));
-   // set texture parameters
-   
-   mytex.addressMode[0] = cudaAddressModeWrap;
-   mytex.addressMode[1] = cudaAddressModeWrap;
-   mytex.filterMode = cudaFilterModeLinear;
-   mytex.normalized = true; 
+      int imgSize = sizeof(uchar4) * imgWidth * imgHeight;
+      cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(8, 8, 8, 8, cudaChannelFormatKindUnsigned);
 
-   // Bind the array to the texture
-   HANDLE_ERROR(cudaBindTextureToArray(mytex, cu_array, channelDesc));
+      cudaArray* cu_array;
+      cudaMallocArray(&cu_array, &channelDesc, imgWidth, imgHeight );
+
+      //copy image to device array cu_array – used as texture mytex on device
+      HANDLE_ERROR(cudaMemcpyToArray(cu_array, 0, 0, texData, imgSize, cudaMemcpyHostToDevice));
+      
+      curTex.addressMode[0] = cudaAddressModeWrap;
+      curTex.addressMode[1] = cudaAddressModeWrap;
+      curTex.filterMode = cudaFilterModeLinear;
+      curTex.normalized = true; 
+
+      // Bind the array to the texture
+      HANDLE_ERROR(cudaBindTextureToArray(curTex, cu_array, channelDesc));
+   }
 
    TKTriangle *dTriangleTokens = NULL;
    TKSmoothTriangle *dSmthTriTokens = NULL;
@@ -496,8 +539,7 @@ void allocateGPUScene(const TKSceneData &data, Triangle **dGeomList,
    int blockSize = kBlockWidth * kBlockWidth;
    int gridSize = (biggestListSize - 1) / blockSize + 1;
    // Fill up GeomList and LightList with actual objects on the GPU
-   initScene<<<gridSize, blockSize>>>(*dGeomList, dTriangleTokens, triangleCount, dSmthTriTokens, smoothTriangleCount, 
-         stype);
+   initScene<<<gridSize, blockSize>>>(*dGeomList, dTriangleTokens, triangleCount, dSmthTriTokens, smoothTriangleCount);
 
    cudaDeviceSynchronize();
    checkCUDAError("initScene failed");
@@ -607,13 +649,17 @@ vec3 *g_dTempImage;
 Shader **g_dShader;
 Triangle **g_dLightList;
 int g_lightCount;
+bool g_isStatic; 
+
 Camera g_camera(vec3(0.0f), vec3(0.0f), vec3(0.0f), vec3(0.0f));
 
-extern "C" void init_kernel(const TKSceneData &data, ShadingType stype, int width, int height) {
+extern "C" void init_kernel(const TKSceneData &data, bool isStatic, int width, int height) {
    Triangle *dGeomList; 
    int geometryCount;
 
    dim3 dimBlock, dimGrid;
+
+   g_isStatic = isStatic;
 
    HANDLE_ERROR(cudaDeviceSetLimit(cudaLimitMallocHeapSize, kGimmeLotsOfMemory));
 
@@ -627,7 +673,7 @@ extern "C" void init_kernel(const TKSceneData &data, ShadingType stype, int widt
    HANDLE_ERROR(cudaMalloc(&g_dTempImage, sizeof(vec3) * width * height));
    HANDLE_ERROR(cudaMemset(g_dVec3Out, 0, sizeof(vec3) * width * height));
 
-   allocateGPUScene(data, &dGeomList, &g_dLightList, &geometryCount, &g_lightCount, g_dShader, stype);
+   allocateGPUScene(data, &dGeomList, &g_dLightList, &geometryCount, &g_lightCount, g_dShader);
 
    cudaDeviceSynchronize();
    checkCUDAError("AllocateGPUScene failed");
@@ -648,7 +694,8 @@ extern "C" void init_kernel(const TKSceneData &data, ShadingType stype, int widt
 
 extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uchar4 *dOutput, bool blur, bool median) {
 
-   updateBVH(kSecondsPerFrame);
+   if (!g_isStatic && pass % kPassesPerUpdate == 0) updateBVH(kSecondsPerFrame);
+
    dim3 dimBlock = dim3(kBlockWidth, kBlockWidth);
    dim3 camGrid((width - 1) / kBlockWidth + 1, (height - 1) / kBlockWidth + 1);
    dim3 dimGrid = dim3((kColumnsPerKernel - 1) / kBlockWidth + 1, (kColumnsPerKernel - 1) / kBlockWidth + 1);

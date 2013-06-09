@@ -137,7 +137,7 @@ void getImage(uchar4 *image) {
 
 char *outFile;
 
-void initCuda(string fileName, int depth, ShadingType stype, char *out)
+void initCuda(string fileName, int depth, bool isStatic, char *out)
 {
    // First initialize OpenGL context, so we can properly set the GL
    // for CUDA.  NVIDIA notes this is necessary in order to achieve
@@ -166,7 +166,7 @@ void initCuda(string fileName, int depth, ShadingType stype, char *out)
 
    // Clean up on program exit
    atexit(cleanupCuda);
-   init_kernel(data, stype, image_width, image_height);
+   init_kernel(data, isStatic, image_width, image_height);
    runCuda();
 }
 

@@ -1,10 +1,12 @@
-#include "POVRayParser.h"
 #include <sstream>
 #include <stdio.h>
+#include <cstring>
+
 #include "glm/glm.hpp"
 #include "glm/core/func_matrix.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/matrix_inverse.hpp"
+#include "POVRayParser.h"
 
 using namespace std;
 using glm::vec3;
@@ -496,12 +498,13 @@ int POVRayParser::parsePigment(std::ifstream &in, TKPigment *pigment, TKSceneDat
       return kSuccess;
    } 
 
-   numArgs = sscanf(buffer, " { image_map \"%s\" ", fileName);
+   numArgs = sscanf(buffer, " { image_map \"%[^\"]\" ", fileName);
    
    if (numArgs == 1) {
       int texId;
       if (!data->textureMap.count(fileName)) {
-         data->textureMap[fileName] = texId = data->textureMap.size();
+         texId = data->textureMap.size();
+         data->textureMap[fileName] = texId;
       } else {
          texId = data->textureMap[fileName];
       }

@@ -1,6 +1,6 @@
 CC=nvcc
 LD=nvcc
-CFLAGS= -O3 -c -lGL -lglut -DGL_GLEXT_PROTOTYPES -lGLU
+CFLAGS= -O3 -c -lGL -lglut -DGL_GLEXT_PROTOTYPES -lGLU -g
 LDFLAGS= -O3 -lGL -lglut -DGL_GLEXT_PROTOTYPES -lGLU 
 CUDAFLAGS= -O2 -lineinfo -g -c -arch=sm_21 -Xptxas -dlcm=ca -prec-div=false -prec-sqrt=false -use_fast_math
 

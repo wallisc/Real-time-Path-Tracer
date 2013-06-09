@@ -17,7 +17,7 @@ const int kDefaultDepth = 4;
 
 // The user must create the following routines:
 // CUDA methods
-extern void initCuda(string fileName, int depth, ShadingType type, char *outFile);
+extern void initCuda(string fileName, int depth, bool isStatic, char *outFile);
 extern void runCuda();
 extern void renderCuda(int);
 
@@ -42,9 +42,10 @@ void printInputError() {
 }
 
 int parseArgs(int argc, char *argv[], int *imgWidth, int *imgHeight, int *depth, 
-              char **fileName, char **outFile, ShadingType *stype) {
+              char **fileName, char **outFile, bool *isStatic) {
    bool imageWidthParsed = false;
    bool imageHeightParsed = false;
+   *isStatic = false;
 
    if (argc < 2) { printInputError();
       return EXIT_FAILURE;
@@ -69,16 +70,14 @@ int parseArgs(int argc, char *argv[], int *imgWidth, int *imgHeight, int *depth,
          }
       } else if (argv[i][0] == '-' && argv[i][1] == 'd') {
             *depth = atoi(argv[++i]);
+      } else if (argv[i][0] == '-' && argv[i][1] == 's') {
+         *isStatic = true;
       } else if (argv[i][0] == '-' && argv[i][1] == 'I') {
          if (strlen(argv[i]) ==  2) {
             *fileName = argv[++i];
          } else {
             *fileName = argv[i] + 2;
          }
-      } else if (argv[i][0] == '-' && argv[i][1] == 'p') {
-        *stype = PHONG; 
-      } else if (argv[i][0] == '-' && argv[i][1] == 't') {
-        *stype = COOK_TORRANCE; 
       } else {
          if (!imageWidthParsed) {
             *imgWidth= atoi(argv[i]);
@@ -137,12 +136,12 @@ int main(int argc, char** argv)
    int imgWidth = kDefaultImageWidth;
    char *fileName = NULL;
    char *outFile = "sample.tga";
-   ShadingType stype = PHONG;
    int status;
    int depth = kDefaultDepth;
+   bool isStatic;
    
    status = parseArgs(argc, argv, &imgWidth, &imgHeight, &depth,
-                      &fileName, &outFile, &stype);
+                      &fileName, &outFile, &isStatic);
 
    if (status == EXIT_FAILURE || !fileName)
       return status;
@@ -154,7 +153,7 @@ int main(int argc, char** argv)
       return false;
    }
 
-   initCuda(fileName, depth, stype, outFile);
+   initCuda(fileName, depth, isStatic, outFile);
 
    // register callbacks
    glutDisplayFunc(fpsDisplay);

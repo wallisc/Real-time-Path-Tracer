@@ -22,12 +22,13 @@ class Material:
    amb = 0.0
    dif = 1.0
    spec = 0.0
-   rough = 0.0
+   rough = 1.0
    refl = 0.0
    refr = 0.0
    ior = 1.0
    em = (0.0, 0.0, 0.0) 
    vel = (0.0, 0.0, 0.0) 
+   map = ""
 
 defMat = Material()
 defMat.clr = (.5, .5, .5)
@@ -42,6 +43,7 @@ def addMaterials(fileName, matMap):
    newMat = re.compile(r"\s*newmtl\s.*")
    illum = re.compile(r"\s*illum\s.*")
    specCoef = re.compile(r"\s*Ns\s.*")
+   imageMap = re.compile(r"\s*map_Kd\s.*")
    alpha = re.compile(r"\s*tr\s.*")
    diffuse = re.compile(r"\s*d\s.*")
    pigment = re.compile(r"\s*Kd\s.*")
@@ -61,6 +63,10 @@ def addMaterials(fileName, matMap):
                tokens = re.split("\s+", line)
                idx = 2 if tokens[0] == "" else 1
                mat.rough = 1.0 / float(tokens[idx]) 
+            elif imageMap.match(line):
+               tokens = re.split("\s+", line)
+               idx = 2 if tokens[0] == "" else 1
+               mat.map = tokens[idx] 
             elif alpha.match(line):
                tokens = re.split("\s+", line)
                idx = 2 if tokens[0] == "" else 1
@@ -110,14 +116,16 @@ def addMaterials(fileName, matMap):
 
 def matToStr(mat):
    str = ""
-   if mat.vel[0] > 0.0 or mat.vel[1] > 0.0 or mat.vel[2] > 0.0:
+   if mat.vel[0] != 0.0 or mat.vel[1] != 0.0 or mat.vel[2] != 0.0:
       str += "   velocity " + vecToStr(mat.vel) + "\n"
 
    if mat.em[0] > 0.0 or mat.em[1] > 0.0 or mat.em[2] > 0.0:
       str += "   pigment { color rgb < " + repr(mat.em[0]) + " , " + repr(mat.em[1]) + " , " + repr(mat.em[2]) + " > }\n"
       str += "   finish { emissive 1"
    else:
-      if mat.alpha > 0.0:
+      if mat.map != "":
+         str += "   pigment { image_map \"" + mat.map + "\" }\n"
+      elif mat.alpha > 0.0:
          str += "   pigment { color rgbf < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " , " + repr(mat.alpha) + " }\n"
       else:
          str += "   pigment { color rgb < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " }\n"
@@ -281,12 +289,12 @@ def convertToPOV(fileName):
                      if idx < 3: outFile.write(",\n")
                      else: outFile.write("\n")
 
-               #if len(uvIdxList) == 3:
-                  #outFile.write("   uv {")
-                  #for idx in range(0, 3):
-                  #   outFile.write(vecToStr(texList[uvIdxList[idx]]))
-                  #   if idx < 2: outFile.write(", ")
-                  #   else: outFile.write("}\n")
+               if len(uvIdxList) == 3:
+                  outFile.write("   uv {")
+                  for idx in range(0, 3):
+                     outFile.write(vecToStr(texList[uvIdxList[idx]]))
+                     if idx < 2: outFile.write(", ")
+                     else: outFile.write("}\n")
 
 
                outFile.write(matToStr(curMat))

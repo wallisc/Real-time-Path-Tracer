@@ -1,0 +1,99 @@
+newmtl AreaLight
+illum 4
+Kd 1.00 1.00 1.00
+Ka 0.1 0.1 0.1
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+Ke 1.00 1.00 1.00
+Ns 18.00
+v 1 0 0
+
+newmtl Camera1
+illum 4
+Kd 0.99 0.99 0.99
+Ka 1.00 1.00 1.00
+Tf 1.00 1.00 1.00
+Ni 42.00
+Ks 0.50 0.50 0.50
+Ns 18.00
+
+newmtl InteriorMat
+illum 4
+Kd 0.50 0.50 0.50
+Ka 0.1 0.1 0.1
+Tf 1.00 1.00 1.00
+map_Kd er9_c_me.bmp
+Ni 1.00
+Ks 0.50 0.50 0.50
+Ns 18.00
+v 1 0 0
+
+newmtl mainMat 
+illum 4
+Kd 0.50 0.50 0.50
+Ka 0.1 0.1 0.1
+Tf 1.00 1.00 1.00
+map_Kd er9_a_me.bmp
+Ni 1.00
+Ks 0.50 0.50 0.50
+Ns 18.00
+v 1 0 0
+
+newmtl Metal
+illum 4
+Kd 0.50 0.50 0.50
+Ka 0.1 0.1 0.1
+Tf 1.00 1.00 1.00
+map_Kd er9_b_me.bmp
+Ni 1.00
+Ks 0.50 0.50 0.50
+Ns 3.35
+v 1 0 0
+
+newmtl TopLight1
+illum 4
+Kd 0.50 0.50 0.50
+Ka 0.1 0.1 0.1
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+Ns 18.00
+v 1 0 0
+
+newmtl TrainRails
+illum 4
+Kd 0.84 0.84 0.84
+Ka 0.1 0.1 0.1
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.85 0.85 0.85
+Ns 59.47
+
+newmtl Trim
+illum 4
+Kd 0.50 0.50 0.50
+Ka 0.1 0.1 0.1
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+Ns 18.00
+v 1 0 0
+
+newmtl Walls
+illum 4
+Kd 0.50 0.50 0.50
+Ka 0.1 0.1 0.1
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.16 0.16 0.16
+
+newmtl Windows
+illum 4
+Kd 0.57 0.87 0.88
+Ka 0.1 0.1 0.1
+Tf 0.00 0.00 0.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+Ns 18.00
+v 1 0 0

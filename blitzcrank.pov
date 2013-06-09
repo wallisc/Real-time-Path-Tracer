@@ -5,7 +5,10 @@ camera {
     look_at <0, 0, 0>
 }
 
-light_source { <0, 10, 10> color rgb <1.3, 1.3, 1.3> }
+triangle { <0, 10, 10>, <0, 9, 9>, <0, 10, 9>
+   pigment { color rgb <1.3, 1.3, 1.3> } 
+   finish { emissive 1 } 
+}
 
 // left wall
 //plane {<1, 0, 0>, -8
@@ -28,28 +31,6 @@ light_source { <0, 10, 10> color rgb <1.3, 1.3, 1.3> }
 //   rotate <0, -20, 0>
 //}
 
-plane { <0, 1, 0>, 0 
-    pigment { color rgb <1.0, 1.0, 1.0> }
-    finish { ambient 0.2 diffuse 0.8 specular 0.2 roughness 0.05 }
-}
-
-sphere { <0, 0, 0>, 2
-   pigment { color rgb <0.0, 0.9, 0.9>}
-   finish {ambient 0.2 diffuse 0.8 specular 0.5 roughness 0.5}
-   translate <-5, 3, -4>
-}
-
-sphere { <0, 0, 0>, 2
-   pigment { color rgb <0.4, 0.1, 0.1>}
-   finish {ambient 0.2 diffuse 0.8 specular 0.5  roughness 0.3}
-   translate <6, 6, -3>
-}
-
-sphere { <0, 0, 0>, 2
-   pigment { color rgb <0.9, 0.1, 0.1>}
-   finish {ambient 0.2 diffuse 0.8 specular 0.5  roughness 0.01}
-   translate <6, 3, 5>
-}
 smooth_triangle {
    <-0.378910, 1.811546, -0.897347>, <-0.031668, 0.981785, -0.187337>,
    <-0.479172, 1.837874, -0.742420>, <-0.031668, 0.981785, -0.187337>,

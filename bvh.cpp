@@ -210,7 +210,7 @@ __global__ void updateBVHNodes(BVHNode *oldBuffer[], BVHNode *newBuffer[], int n
    
    if (idx >= nodesLeft) return;
 
-   if (idx == nodesLeft - 1 && nodesLeft % 2 == 1) {
+   if (oldBuffer[idx]->geom || (idx == nodesLeft - 1 && nodesLeft % 2 == 1)) {
       newBuffer[idx / 2] = oldBuffer[idx];
    } else {
       oldBuffer[idx]->bb = combineBoundingBox(oldBuffer[idx]->left->bb, 

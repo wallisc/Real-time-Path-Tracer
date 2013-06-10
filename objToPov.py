@@ -126,9 +126,9 @@ def matToStr(mat):
       if mat.map != "":
          str += "   pigment { image_map \"" + mat.map + "\" }\n"
       elif mat.alpha > 0.0:
-         str += "   pigment { color rgbf < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " , " + repr(mat.alpha) + " }\n"
+         str += "   pigment { color rgbf < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " , " + repr(mat.alpha) + "> }\n"
       else:
-         str += "   pigment { color rgb < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " }\n"
+         str += "   pigment { color rgb < " + repr(mat.clr[0]) + " , " + repr(mat.clr[1]) + " , " + repr(mat.clr[2]) + " > }\n"
       str += "   finish { ambient " + repr(mat.amb) + " diffuse " + repr(mat.dif) + " specular " + repr(mat.spec) + " roughness " + repr(mat.rough)   
 
       if mat.refl > 0.0:

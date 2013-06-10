@@ -14,10 +14,14 @@ using std::string;
 const int kDefaultImageWidth = 640;
 const int kDefaultImageHeight = 480;
 const int kDefaultDepth = 4;
+const int kDefaultPassesPerUpdate = 1;
+const float kDefaultTimePerUpdate = 0.1f;
 
 // The user must create the following routines:
 // CUDA methods
-extern void initCuda(string fileName, int depth, bool isStatic, char *outFile);
+extern void initCuda(string fileName, int depth, bool isStatic, char *out, 
+      float timePerUpdate, int passesPerUpdate, float exposureTime);
+
 extern void runCuda();
 extern void renderCuda(int);
 
@@ -42,10 +46,10 @@ void printInputError() {
 }
 
 int parseArgs(int argc, char *argv[], int *imgWidth, int *imgHeight, int *depth, 
-              char **fileName, char **outFile, bool *isStatic) {
+              char **fileName, char **outFile, bool *isStatic, float *tPerUpdate, 
+              int *passPerUpdate, float *exposureTime) {
    bool imageWidthParsed = false;
    bool imageHeightParsed = false;
-   *isStatic = false;
 
    if (argc < 2) { printInputError();
       return EXIT_FAILURE;
@@ -70,6 +74,12 @@ int parseArgs(int argc, char *argv[], int *imgWidth, int *imgHeight, int *depth,
          }
       } else if (argv[i][0] == '-' && argv[i][1] == 'd') {
             *depth = atoi(argv[++i]);
+      } else if (argv[i][0] == '-' && argv[i][1] == 't') {
+            *tPerUpdate = atof(argv[++i]);
+      } else if (argv[i][0] == '-' && argv[i][1] == 'n') {
+            *passPerUpdate = atoi(argv[++i]);
+      } else if (argv[i][0] == '-' && argv[i][1] == 'e') {
+            *exposureTime = atof(argv[++i]);
       } else if (argv[i][0] == '-' && argv[i][1] == 's') {
          *isStatic = true;
       } else if (argv[i][0] == '-' && argv[i][1] == 'I') {
@@ -138,10 +148,14 @@ int main(int argc, char** argv)
    char *outFile = "sample.tga";
    int status;
    int depth = kDefaultDepth;
-   bool isStatic;
+   bool isStatic = false;
+   float timePerUpdate = kDefaultTimePerUpdate;
+   int passesPerUpdate = kDefaultPassesPerUpdate;
+   float exposureTime = -1.0f;
    
    status = parseArgs(argc, argv, &imgWidth, &imgHeight, &depth,
-                      &fileName, &outFile, &isStatic);
+                      &fileName, &outFile, &isStatic, &timePerUpdate,
+                      &passesPerUpdate, &exposureTime);
 
    if (status == EXIT_FAILURE || !fileName)
       return status;
@@ -153,7 +167,8 @@ int main(int argc, char** argv)
       return false;
    }
 
-   initCuda(fileName, depth, isStatic, outFile);
+   initCuda(fileName, depth, isStatic, outFile, timePerUpdate, passesPerUpdate, 
+         exposureTime);
 
    // register callbacks
    glutDisplayFunc(fpsDisplay);

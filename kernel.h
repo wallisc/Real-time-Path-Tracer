@@ -14,15 +14,16 @@
 const int kMaxStackSize = 70;
 const int kGimmeLotsOfMemory = 1000000 * 256;
 const int kBlockWidth = 16;
+const int kBlockHeight = 32;
 const int kNumStreams = 3;
-const int kMaxTextures= 5;
+const int kMaxTextures= 11;
 
 const float kAirIOR = 1.0f;
 
 const int kMedianPixelAmt = 3;
 
 const int kMinDepth= 3;
-const float kRussianRoulette= .3f;
+const float kRussianRoulette= .5f;
 
 const float kSecondsPerFrame = 0.1f;
 const int kPassesPerUpdate = 1;
@@ -33,7 +34,8 @@ const int kAxisNum = 3;
 const int kRowsPerKernel = 512;
 const int kColumnsPerKernel = 512;
 
-extern "C" void init_kernel(const TKSceneData &data, bool isStatic, int width, int height);
+extern "C" void init_kernel(const TKSceneData &data, bool isStatic, int width, int height, 
+      float timePerUpdate, int passesPerUpdate, float exposureTime);
 extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uchar4 *output, bool blur, bool median);
 void kernelGetImage(uchar4 *dImage, uchar4 *image, int width, int height);
 void translateCamera(glm::vec3 trans);

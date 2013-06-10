@@ -34,7 +34,6 @@ GLuint textureID=0;
 
 void createPBO(GLuint* pbo)
 {
-
    if (pbo) {
       // set up vertex data parameter
       int num_texels = image_width * image_height;
@@ -137,8 +136,9 @@ void getImage(uchar4 *image) {
 
 char *outFile;
 
-void initCuda(string fileName, int depth, bool isStatic, char *out)
-{
+void initCuda(string fileName, int depth, bool isStatic, char *out, 
+      float timePerUpdate, int passesPerUpdate, float exposureTime) {
+
    // First initialize OpenGL context, so we can properly set the GL
    // for CUDA.  NVIDIA notes this is necessary in order to achieve
    // optimal performance with OpenGL/CUDA interop.  use command-line
@@ -166,7 +166,7 @@ void initCuda(string fileName, int depth, bool isStatic, char *out)
 
    // Clean up on program exit
    atexit(cleanupCuda);
-   init_kernel(data, isStatic, image_width, image_height);
+   init_kernel(data, isStatic, image_width, image_height, timePerUpdate, passesPerUpdate, exposureTime);
    runCuda();
 }
 

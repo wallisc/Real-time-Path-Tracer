@@ -35,6 +35,13 @@ Tex tex1;
 Tex tex2;
 Tex tex3;
 Tex tex4;
+Tex tex5;
+Tex tex6;
+Tex tex7;
+Tex tex8;
+Tex tex9;
+Tex tex10;
+Tex tex11;
 
 __device__ Tex getCudaTexture(int i) {
    switch(i) {
@@ -43,6 +50,13 @@ __device__ Tex getCudaTexture(int i) {
    case 2: return tex2;
    case 3: return tex3;
    case 4: return tex4;
+   case 5: return tex5;
+   case 6: return tex6;
+   case 7: return tex7;
+   case 8: return tex8;
+   case 9: return tex9;
+   case 10: return tex10;
+   case 11: return tex11;
    }
    printf("Texture not found, returning the first texture\n");
    return tex0;
@@ -55,6 +69,13 @@ __host__ Tex &getTexture(int i) {
    case 2: return tex2;
    case 3: return tex3;
    case 4: return tex4;
+   case 5: return tex5;
+   case 6: return tex6;
+   case 7: return tex7;
+   case 8: return tex8;
+   case 9: return tex9;
+   case 10: return tex10;
+   case 11: return tex11;
    }
    printf("Texture not found, returning the first texture\n");
    return tex0;
@@ -394,13 +415,14 @@ __global__ void rayTrace(int column, int row, int resWidth, int resHeight,
          totalColor += scale * shadeObject(tree, lights, lightCount, 
                closestGeom, t, ray, &randStates[tid]);
 
+         //killed = closestGeom->getMaterial().emissive || (depth >= kMinDepth && curand_uniform(&randStates[tid]) < kRussianRoulette);
+         //if (!killed) scale *= 1.0f / kRussianRoulette;
          if (!closestGeom->getMaterial().emissive && depth >= kMinDepth) {
-            if (curand_uniform(&randStates[tid]) < kRussianRoulette) {
-            } else {
+            if (curand_uniform(&randStates[tid]) > kRussianRoulette) {
                scale *= 1.0f / kRussianRoulette;
                killed = false;
             }
-         } else {
+         } else if (!closestGeom->getMaterial().emissive) {
             killed = false;
          }
       }
@@ -536,7 +558,7 @@ void allocateGPUScene(const TKSceneData &data, Triangle **dGeomList,
    HANDLE_ERROR(cudaMalloc(dGeomList, sizeof(Triangle) * geometryCount));
    HANDLE_ERROR(cudaMalloc(g_dLightList, sizeof(Triangle *) * lightCount));
 
-   int blockSize = kBlockWidth * kBlockWidth;
+   int blockSize = kBlockWidth * kBlockHeight;
    int gridSize = (biggestListSize - 1) / blockSize + 1;
    // Fill up GeomList and LightList with actual objects on the GPU
    initScene<<<gridSize, blockSize>>>(*dGeomList, dTriangleTokens, triangleCount, dSmthTriTokens, smoothTriangleCount);
@@ -650,16 +672,24 @@ Shader **g_dShader;
 Triangle **g_dLightList;
 int g_lightCount;
 bool g_isStatic; 
+float g_exposureTime;; 
+int g_passesPerUpdate; 
+float g_timePerUpdate; 
 
 Camera g_camera(vec3(0.0f), vec3(0.0f), vec3(0.0f), vec3(0.0f));
 
-extern "C" void init_kernel(const TKSceneData &data, bool isStatic, int width, int height) {
+extern "C" void init_kernel(const TKSceneData &data, bool isStatic, int width, int height, 
+      float timePerUpdate, int passesPerUpdate, float exposureTime) {
+
    Triangle *dGeomList; 
    int geometryCount;
 
    dim3 dimBlock, dimGrid;
 
    g_isStatic = isStatic;
+   g_exposureTime = exposureTime;
+   g_passesPerUpdate = passesPerUpdate;
+   g_timePerUpdate = timePerUpdate;
 
    HANDLE_ERROR(cudaDeviceSetLimit(cudaLimitMallocHeapSize, kGimmeLotsOfMemory));
 
@@ -684,21 +714,27 @@ extern "C" void init_kernel(const TKSceneData &data, bool isStatic, int width, i
    //formBVH modifies the ordering of geometry so the lights must be gathered afterwards
    setupLights<<<1, 1>>>(dGeomList, geometryCount, g_dLightList);
 
-   HANDLE_ERROR(cudaMalloc(&g_dRandStates, sizeof(curandState) * kBlockWidth * kBlockWidth));
+   HANDLE_ERROR(cudaMalloc(&g_dRandStates, sizeof(curandState) * kBlockWidth * kBlockHeight));
 
-   dimBlock = dim3(kBlockWidth * kBlockWidth);
-   initCurand<<<1, dimBlock>>>(g_dRandStates, kBlockWidth * kBlockWidth);
+   dimBlock = dim3(kBlockWidth * kBlockHeight);
+   initCurand<<<1, dimBlock>>>(g_dRandStates, kBlockWidth * kBlockHeight);
    HANDLE_ERROR(cudaMalloc(&g_dRayCache, sizeof(RayCache) * width* height));
 
 }
 
 extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uchar4 *dOutput, bool blur, bool median) {
 
-   if (!g_isStatic && pass % kPassesPerUpdate == 0) updateBVH(kSecondsPerFrame);
+   static float time = 0.0f;
+   if (g_exposureTime > 0.0f && time > g_exposureTime) return;
 
-   dim3 dimBlock = dim3(kBlockWidth, kBlockWidth);
-   dim3 camGrid((width - 1) / kBlockWidth + 1, (height - 1) / kBlockWidth + 1);
-   dim3 dimGrid = dim3((kColumnsPerKernel - 1) / kBlockWidth + 1, (kColumnsPerKernel - 1) / kBlockWidth + 1);
+   if (!g_isStatic && pass % g_passesPerUpdate == 0) {
+      updateBVH(g_timePerUpdate);
+      time += g_timePerUpdate;
+   }
+
+   dim3 dimBlock = dim3(kBlockWidth, kBlockHeight);
+   dim3 camGrid((width - 1) / kBlockWidth + 1, (height - 1) / kBlockHeight + 1);
+   dim3 dimGrid = dim3((kColumnsPerKernel - 1) / kBlockWidth + 1, (kColumnsPerKernel - 1) / kBlockHeight + 1);
 
    generateCameraRays<<<camGrid, dimBlock>>>(width, height, g_camera, g_dRayCache, g_dRandStates);
    if (pass == 1) cudaMemset(g_dVec3Out, 0, sizeof(vec3) * width * height);
@@ -716,9 +752,17 @@ extern "C" void launch_kernel(int width, int height, int maxDepth, int pass, uch
    cudaDeviceSynchronize();
    checkCUDAError("rayTrace kernel failed");
 
-   dimBlock = dim3(kBlockWidth, kBlockWidth);
-   dimGrid = dim3((width - 1) / kBlockWidth + 1, (height - 1) / kBlockWidth + 1);
-   averagePasses<<<dimGrid, dimBlock>>>(width, height, g_dVec3Out, g_dTempImage, pass); 
+   dimBlock = dim3(kBlockWidth, kBlockHeight);
+   dimGrid = dim3((width - 1) / kBlockWidth + 1, (height - 1) / kBlockHeight + 1);
+
+   // If in interactive mode
+   if (g_exposureTime < 0.0f) {
+      averagePasses<<<dimGrid, dimBlock>>>(width, height, g_dVec3Out, g_dTempImage, pass); 
+
+   // If in photo mode
+   } else {
+      averagePasses<<<dimGrid, dimBlock>>>(width, height, g_dVec3Out, g_dTempImage, g_exposureTime * g_passesPerUpdate / g_timePerUpdate); 
+   }
    cudaDeviceSynchronize();
    checkCUDAError("averagePasses kernel failed");
 

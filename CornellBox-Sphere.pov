@@ -1,9 +1,9 @@
 
 camera {
-    location <0, 1, 2>
+    location <0, .75, 2>
     up <0, 1, 0>
     right <1.33, 0, 0>
-    look_at <0, 1, 0>
+    look_at <0, .75, 0>
 }
 
 smooth_triangle {

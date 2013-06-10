@@ -9,7 +9,6 @@ public:
          glm::vec3 lightColor, glm::vec3 normal, bool inShadow) {
 
       glm::vec3 light(0.0f);
-      
       if (inShadow) return light;
 
       // Diffuse lighting

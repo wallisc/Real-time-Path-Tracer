@@ -1,0 +1,181 @@
+newmtl AreaLight
+illum 4
+Kd 1.00 1.00 1.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.50 0.50 0.50
+Ns 18.00
+
+newmtl Floor
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture12.bmp
+Ni 1.00
+Ks 0.50 0.50 0.50
+Ns 18.00
+
+newmtl mesh1SG
+illum 4
+Kd 0.50 0.56 0.53
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh1SG1
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture0.bmp
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh19SG
+illum 4
+Kd 0.20 0.10 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh43SG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture1.bmp
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh49SG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture2.bmp
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh49SG1
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd zebra.bmp
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh49SG2
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh49SG3
+illum 4
+Kd 0.23 0.23 0.23
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh49SG4
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture4.bmp
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh49SG5
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture3.bmp
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh51SG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture5.bmp
+Ni 1.00
+Ks 0.00 0.00 0.00
+Ns 18.00
+
+newmtl mesh68SG
+illum 4
+Kd 0.30 0.24 0.18
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh69SG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture6.bmp
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh94SG
+illum 4
+Kd 0.78 0.78 0.78
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh95SG
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture7.bmp
+Ni 1.00
+Ks 0.00 0.00 0.00
+Ns 18.00
+
+newmtl mesh104SG
+illum 4
+Kd 0.50 0.50 0.50
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00
+
+newmtl mesh104SG1
+illum 4
+Kd 0.00 0.00 0.00
+Ka 0.00 0.00 0.00
+Tf 1.00 1.00 1.00
+map_Kd texture8.bmp
+Ni 1.00
+Ks 0.33 0.33 0.33
+Ns 18.00

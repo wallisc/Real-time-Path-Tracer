@@ -246,22 +246,26 @@ __device__ bool isInShadow(const Ray &shadow, BVHTree *tree, float intersectPara
 }
 
 __device__ vec3 cosineWeightedSample(vec3 normal, float rand1, float rand2) {
-   float distFromCenter = rand1;
-   float theta = 2.0f * M_PI * rand2;
-   float phi = M_PI / 2.0f - acos(distFromCenter);
+   //float distFromCenter = rand1;
+   float theta = acos(sqrt(rand2));
+   float phi = M_PI * 2.0f * rand1;
 
-   float phiDeg = phi * 180.0f / M_PI;
-   float thetaDeg = theta * 180.0f / M_PI;
+   //float phiDeg = phi * 180.0f / M_PI;
+   //float thetaDeg = theta * 180.0f / M_PI;
+   float xs = sin(theta) * cos(phi), ys = cos(theta), zs = sin(theta) * sin(phi); 
 
-   vec3 outV; 
-   if (normal.x > .99f) outV = vec3(0.0f, 1.0f, 0.0f);
-   else if (normal.x < -.99f) outV = vec3(0.0f, -1.0f, 0.0f);
-   else outV = glm::cross(normal, vec3(1.0f, 0.0, 0.0));
-   glm::mat4 rot1 = glm::rotate(glm::mat4(1.0f), phiDeg, outV);
-   glm::mat4 rot2 = glm::rotate(glm::mat4(1.0f), thetaDeg, normal);
-   glm::vec4 norm(normal.x, normal.y, normal.z, 0.0f);
+   vec3 y(normal);
+   vec3 h(normal);
+   if (abs(h.x) <= abs(h.y) && abs(h.x) <= abs(h.z)) h.x = 1.0f;
+   else if (abs(h.y) <= abs(h.x) && abs(h.y) <= abs(h.z)) h.y = 1.0f;
+   else h.z = 1.0f;
+
+   vec3 x = glm::normalize(glm::cross(h, y));
+   vec3 z = glm::normalize(glm::cross(x, y));
+
+   vec3 dir = xs * x + ys * y + zs * z;
    
-   return vec3(rot2 * rot1 * norm);
+   return glm::normalize(dir);
 }
 
 

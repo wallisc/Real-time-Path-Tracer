@@ -145,7 +145,7 @@ int main(int argc, char** argv)
    int imgHeight = kDefaultImageHeight;
    int imgWidth = kDefaultImageWidth;
    char *fileName = NULL;
-   char *outFile = "sample.tga";
+   char *outFile = "sample";
    int status;
    int depth = kDefaultDepth;
    bool isStatic = false;

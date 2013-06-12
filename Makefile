@@ -6,8 +6,8 @@ CUDAFLAGS= -O3 -c -arch=sm_21 -Xptxas -dlcm=ca -prec-div=false -prec-sqrt=false 
 
 ALL= callbacksPBO.o simpleGLmain.o simplePBO.o kernel.o POVRayParser.o Image.o
 
-HEADERS = cudaError.h kernel.h Plane.h Shader.h Geometry.h Light.h PointLight.h Ray.h 
-HEADERS += TokenData.h Material.h Util.h PhongShader.h CookTorranceShader.h 
+HEADERS = cudaError.h kernel.h Plane.h Shader.h Geometry.h Light.h Ray.h 
+HEADERS += TokenData.h Material.h Util.h PhongShader.h 
 HEADERS += Triangle.h bvh.h GeometryUtil.h BoundingBox.h bvh.cpp
 
 all= $(ALL)  RTRT

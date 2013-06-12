@@ -5,7 +5,7 @@ camera {
     look_at <0, 0, 0>
 }
 
-triangle { <0, 10, 10>, <0, 9, 9>, <0, 10, 9>
+triangle { <0, 10, 10>, <0, 10, 10>, <0, 10, 10>
    pigment { color rgb <1.3, 1.3, 1.3> } 
    finish { emissive 1 } 
 }

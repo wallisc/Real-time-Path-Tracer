@@ -6,6 +6,11 @@ Current the path tracer give a real-time feedback via an OpenGL window. The
 tracer can be exited at any time by hitting 'esc' and the image will automatically
 be saved 
 
+Controls
+w/a/s/d - left/right up/down movement
+q/e - zoom in/out
+i/j/k/l - camera rotations
+
 Current implemented features are:
  * Real-time visual of path tracing (which by have automatic anti-aliasing)
  * Area Lights and Triangles 
@@ -43,3 +48,19 @@ Flags supported are:
 
    --help     print out readme instructions
 
+
+
+The Cornell box with just boxes can be run at 15 frames per second on the CSL machines
+
+Files with cool scenes are (listed by cool-ness):
+   * diningRoom.pov
+   * bunnies.pov
+   * Cornell-Sphere.pov
+   * Cornell-Original.pov
+   * blitzcrank.pov
+
+Rendered images are:
+   * room.tga
+   * cornell.tga
+   * cornellBlur.tga
+   * blitzcrank.tga

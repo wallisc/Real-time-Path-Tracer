@@ -184,8 +184,9 @@ void modifyCamera(vec3 translate, float rotHoriz, float rotVertical) {
       g_pass = 1;
 }
 
-void saveImage() {
-   uchar4 *output = (uchar4 *)malloc(image_width * image_height * sizeof(uchar4));
+void saveImage(int frame) {
+   static uchar4 *output = (uchar4 *)malloc(image_width * image_height * sizeof(uchar4));
+   char buffer[200];
    getImage(output);
    Image img(image_width, image_height);
    for (int x = 0; x < image_width; x++) {
@@ -198,5 +199,6 @@ void saveImage() {
          img.pixel(x, image_height - y - 1, clr);
       }
    }
-   img.WriteTga(outFile);
+   sprintf(buffer, "%s%d.tga", outFile, frame);
+   img.WriteTga(buffer);
 }

@@ -23,10 +23,12 @@ void setFilter(bool blur, bool median, bool motionBlur);
 
 // The user must create the following routines:
 void runCuda();
-void saveImage();
+void saveImage(int frame);
 
 void display()
 {
+   static int frame = 0;
+   saveImage(frame++);
    // run CUDA kernel
    runCuda();
 
@@ -80,7 +82,6 @@ void keyboard(unsigned char key, int x, int y)
 
    switch(key) {
    case 27:
-      saveImage();
       exit(0);
       break;
    case 'q':

@@ -7,7 +7,6 @@
 #include "curand_kernel.h"
 #include "TokenData.h"
 #include "Geometry.h"
-#include "PointLight.h"
 #include "Shader.h"
 #include "bvh.h"
 

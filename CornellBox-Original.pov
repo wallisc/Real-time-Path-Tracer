@@ -1,6 +1,6 @@
 
 camera {
-    location <0, 1, 1>
+    location <0, 1, 2>
     up <0, 1, 0>
     right <1.33, 0, 0>
     look_at <0, 1, 0>
